@@ -1,0 +1,1580 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🎹 音乐番茄钟 · ADHD 练琴外挂</title>
+<style>
+  :root{
+    --pink:#ff3fa4; --cyan:#00f0ff; --yellow:#ffd93d; --purple:#a855f7;
+    --panel:rgba(18,4,38,.72); --line:rgba(255,255,255,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100vh; color:#fff; overflow-x:hidden;
+    font-family:"Comic Sans MS","Chalkboard SE","微软雅黑",system-ui,sans-serif;
+    background:
+      radial-gradient(900px 600px at 8% 0%, #2a0045 0%, transparent 60%),
+      radial-gradient(700px 500px at 96% 12%, #002a3a 0%, transparent 55%),
+      radial-gradient(900px 700px at 50% 112%, #3a0030 0%, transparent 62%),
+      #08000f;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.55;
+    background-image:
+      radial-gradient(1.5px 1.5px at 40px 60px, #fff, transparent),
+      radial-gradient(2px 2px at 130px 20px, #ffe9a8, transparent),
+      radial-gradient(1.5px 1.5px at 200px 150px, #9ff, transparent),
+      radial-gradient(1px 1px at 90px 200px, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 280px 90px, #ffb3e6, transparent);
+    background-size:320px 240px;
+    animation:twinkle 2.6s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle{ from{opacity:.25} to{opacity:.75} }
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:900; mix-blend-mode:overlay;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.05) 0 1px, transparent 1px 3px);
+  }
+  canvas#fx{position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:950}
+  #flash{position:fixed; inset:0; pointer-events:none; z-index:940; background:#fff; opacity:0}
+  #flash.go{animation:flash .45s ease-out}
+  @keyframes flash{ 0%{opacity:.85} 100%{opacity:0} }
+
+  .wrap{position:relative; z-index:1; max-width:1120px; margin:0 auto; padding:18px 16px 60px}
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{text-align:center; margin-bottom:18px}
+  .ticker{
+    overflow:hidden; white-space:nowrap; border-top:2px dashed var(--pink);
+    border-bottom:2px dashed var(--cyan); padding:5px 0; margin-bottom:14px;
+    background:rgba(255,63,164,.08);
+  }
+  .ticker span{display:inline-block; padding-left:100%; animation:marquee 16s linear infinite;
+    font-size:13px; letter-spacing:2px; color:#ffe9a8; text-shadow:0 0 8px var(--pink)}
+  @keyframes marquee{ to{transform:translateX(-100%)} }
+
+  h1{
+    font-size:clamp(26px,5.4vw,46px); margin:0 0 6px; letter-spacing:3px;
+    background:linear-gradient(90deg,#ff3fa4,#ffd93d,#00f0ff,#a855f7,#ff3fa4);
+    background-size:300% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 14px rgba(255,63,164,.85)) drop-shadow(0 2px 0 #4a0030);
+    animation:rainbow 4s linear infinite;
+  }
+  @keyframes rainbow{ to{background-position:300% 0} }
+  .tagline{margin:0; font-size:13px; color:#cfc0ff; letter-spacing:1px}
+  .tagline b{color:var(--yellow); text-shadow:0 0 8px var(--yellow)}
+
+  /* ---------- 布局 ---------- */
+  main{display:grid; grid-template-columns:1.12fr .88fr; gap:18px; align-items:start}
+  .card{
+    position:relative; background:var(--panel); border:2px solid var(--line);
+    border-radius:20px; padding:18px 18px 20px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.6) inset, 0 10px 32px rgba(0,0,0,.55), 0 0 26px rgba(168,85,247,.18);
+    backdrop-filter:blur(6px);
+  }
+  .card::before{
+    content:""; position:absolute; inset:-2px; border-radius:22px; padding:2px; z-index:-1;
+    background:conic-gradient(from 0deg,#ff3fa4,#ffd93d,#00f0ff,#a855f7,#ff3fa4);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+    opacity:.55; animation:spin 8s linear infinite;
+  }
+  @keyframes spin{ to{filter:hue-rotate(360deg)} }
+  .timer-card{grid-row:span 2}
+  .future-card{grid-column:1 / -1}
+
+  h2{font-size:17px; margin:0 0 12px; letter-spacing:1px}
+  .hint{font-size:12px; color:#a99bd0; font-weight:400; letter-spacing:0}
+
+  /* ---------- 模式切换 ---------- */
+  .pills{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:12px}
+  .pill{
+    font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;
+    padding:7px 14px; border-radius:999px; color:#e9dcff;
+    border:2px solid rgba(255,255,255,.25); background:rgba(255,255,255,.06);
+    transition:.15s;
+  }
+  .pill:hover{transform:translateY(-1px); border-color:var(--cyan)}
+  .pill.active{
+    color:#2b0030; border-color:#fff;
+    background:linear-gradient(135deg,var(--pink),var(--yellow));
+    box-shadow:0 0 18px rgba(255,63,164,.75), 0 3px 0 #7a1550;
+  }
+
+  /* ---------- 计时环 ---------- */
+  .ring-wrap{position:relative; width:min(80%,300px); aspect-ratio:1; margin:6px auto 14px}
+  .ring{position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg)}
+  .ring-bg{fill:none; stroke:rgba(255,255,255,.09); stroke-width:14}
+  .ring-fg{
+    fill:none; stroke:url(#rainbow); stroke-width:14; stroke-linecap:round;
+    filter:drop-shadow(0 0 8px rgba(255,63,164,.9)) drop-shadow(0 0 16px rgba(0,240,255,.5));
+    transition:stroke-dashoffset .25s linear;
+  }
+  .ring-inner{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px}
+  .time{
+    font-size:clamp(44px,11vw,72px); font-weight:900; letter-spacing:2px;
+    font-variant-numeric:tabular-nums;
+    background:linear-gradient(180deg,#fff,#ffd93d 55%,#ff9ad6);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 12px rgba(255,217,61,.75));
+  }
+  .time.ticking{animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{50%{filter:drop-shadow(0 0 24px rgba(255,63,164,.95))}}
+  .mode-label{font-size:12px; color:#cdbcff; letter-spacing:1px}
+  .tomatoes{font-size:12px; color:#ffd93d; margin-top:2px}
+
+  /* ---------- 按钮 ---------- */
+  .timer-btns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+  .btn{
+    font-family:inherit; font-size:15px; font-weight:800; cursor:pointer; letter-spacing:1px;
+    padding:12px 20px; border-radius:14px; color:#fff;
+    border:2px solid rgba(255,255,255,.28); background:rgba(255,255,255,.08);
+    transition:.12s; box-shadow:0 4px 0 rgba(0,0,0,.45);
+  }
+  .btn:hover{transform:translateY(-1px); border-color:#fff}
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.45)}
+  .btn.primary{
+    color:#2b0030; border-color:rgba(255,255,255,.7);
+    background:linear-gradient(135deg,var(--pink),var(--yellow));
+    box-shadow:0 0 22px rgba(255,63,164,.65), 0 5px 0 #7a1550;
+    padding:13px 26px; font-size:16px;
+  }
+  .btn.small{padding:9px 14px; font-size:13px}
+  .sub-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px}
+  .mini{
+    font-family:inherit; font-size:12px; cursor:pointer; color:#e2d6ff;
+    padding:6px 11px; border-radius:10px; background:rgba(255,255,255,.06);
+    border:1px dashed rgba(255,255,255,.28);
+  }
+  .mini:hover{border-color:var(--cyan); color:#fff}
+  .metro{display:flex; align-items:center; gap:6px}
+  .metro input[type=range]{width:78px; accent-color:var(--pink)}
+  #bpmVal{color:var(--yellow); width:22px; text-align:center}
+  .mini-btn{
+    font-family:inherit; font-size:12px; cursor:pointer; padding:4px 10px; border-radius:8px;
+    color:#2b0030; border:none; background:linear-gradient(135deg,var(--cyan),var(--yellow)); font-weight:800;
+  }
+
+  /* ---------- 任务 ---------- */
+  .task-form{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap}
+  .task-form input{
+    flex:1 1 150px; min-width:0; font-family:inherit; font-size:13px; color:#fff;
+    padding:10px 12px; border-radius:12px; outline:none;
+    border:2px solid rgba(255,255,255,.2); background:rgba(0,0,0,.35);
+  }
+  .task-form input:focus{border-color:var(--cyan); box-shadow:0 0 12px rgba(0,240,255,.4)}
+  .task-form select{
+    font-family:inherit; font-size:12px; color:#fff; padding:0 8px; border-radius:12px;
+    border:2px solid rgba(255,255,255,.2); background:#1a0733;
+  }
+  .task-list{list-style:none; margin:0; padding:0; max-height:280px; overflow:auto}
+  .task{
+    display:flex; align-items:center; gap:10px; padding:9px 6px;
+    border-bottom:1px dashed rgba(255,255,255,.13); font-size:13px;
+  }
+  .task .check{
+    flex:0 0 30px; width:30px; height:30px; border-radius:50%; cursor:pointer;
+    font-size:15px; line-height:1; color:#ffd93d; border:2px solid var(--yellow);
+    background:rgba(255,217,61,.1); font-family:inherit; transition:.15s;
+  }
+  .task .check:hover{box-shadow:0 0 14px var(--yellow); transform:scale(1.08)}
+  .task .txt{flex:1; word-break:break-all}
+  .task .rw{flex:0 0 auto; font-size:11px; letter-spacing:1px}
+  .task .del{
+    flex:0 0 auto; background:none; border:none; color:#775a9a; cursor:pointer; font-size:14px;
+  }
+  .task .del:hover{color:var(--pink)}
+  .task.done .txt{text-decoration:line-through; color:#8f7fb5}
+  .task.done .check{background:var(--yellow); color:#2b0030}
+  .task.done{opacity:.62}
+
+  /* ---------- 奖励 ---------- */
+  .star-big{text-align:center; font-size:38px; font-weight:900; line-height:1; margin:4px 0 12px;
+    color:var(--yellow); text-shadow:0 0 16px var(--yellow), 0 0 40px rgba(255,217,61,.6);
+    animation:pulseStar 2.4s ease-in-out infinite}
+  @keyframes pulseStar{50%{transform:scale(1.06)}}
+  .star-big .star-ico{font-size:30px; margin-left:4px}
+  .level{margin-bottom:12px}
+  .level-top{display:flex; justify-content:space-between; font-size:12px; color:#cfc0ff; margin-bottom:6px}
+  .bar{height:10px; border-radius:999px; background:rgba(255,255,255,.1); overflow:hidden;
+    border:1px solid rgba(255,255,255,.14)}
+  .bar i{display:block; height:100%; width:0; border-radius:999px;
+    background:linear-gradient(90deg,var(--pink),var(--yellow),var(--cyan));
+    transition:width .4s ease; box-shadow:0 0 12px var(--pink)}
+  .badges{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px}
+  .badge{
+    font-size:11px; padding:5px 9px; border-radius:999px; letter-spacing:0;
+    border:1px dashed rgba(255,255,255,.22); color:#8e7fae; background:rgba(255,255,255,.03);
+  }
+  .badge.on{
+    color:#2b0030; border:1px solid #fff; background:linear-gradient(135deg,var(--yellow),var(--cyan));
+    font-weight:800; box-shadow:0 0 14px rgba(255,217,61,.6);
+  }
+  .shop{width:100%; margin-bottom:8px; font-size:13px; padding:11px 12px;
+    background:linear-gradient(135deg,rgba(255,63,164,.22),rgba(0,240,255,.18))}
+
+  /* ---------- 未来 ---------- */
+  .future-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px}
+  .future-item{
+    position:relative; padding:12px; border-radius:14px; overflow:hidden;
+    border:2px dashed rgba(255,255,255,.2); background:rgba(255,255,255,.03);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .future-item b{font-size:13px; color:#fff}
+  .future-item span{font-size:11px; color:#a99bd0}
+  .future-item em{
+    font-style:normal; font-size:10px; color:#2b0030; align-self:flex-start; margin-top:4px;
+    padding:2px 8px; border-radius:999px; background:var(--yellow); font-weight:800;
+  }
+  .future-item::after{
+    content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);
+    animation:shimmer 2.8s infinite;
+  }
+  @keyframes shimmer{ to{left:120%} }
+
+  /* ---------- 实时音准 ---------- */
+  .tuner-card{grid-column:1 / -1}
+  .tuner-body{display:grid; grid-template-columns:200px 1fr; gap:22px; align-items:center}
+  .tuner-body > *{min-width:0}
+  .tuner-card{min-width:0}
+  .note-big{
+    font-size:clamp(48px,8vw,64px); font-weight:900; line-height:1; letter-spacing:2px;
+    color:#e8dcff; text-shadow:0 0 16px rgba(168,85,247,.7);
+    font-variant-numeric:tabular-nums; transition:color .12s;
+  }
+  .note-big.sharp{font-size:clamp(32px,5.4vw,44px); letter-spacing:0}
+  .tuner-card.in-tune .note-big{color:#4dff9d; text-shadow:0 0 18px #4dff9d, 0 0 44px rgba(77,255,157,.55)}
+  .tuner-card.close .note-big{color:#ffd93d; text-shadow:0 0 18px #ffd93d}
+  .tuner-card.off .note-big{color:#ff3fa4; text-shadow:0 0 18px #ff3fa4}
+  .note-sub{font-size:12px; color:#b9a8e0; margin:8px 0 12px; min-height:16px}
+  .tuner-actions{display:flex; gap:8px; flex-wrap:wrap}
+  .gauge-track{
+    position:relative; height:20px; border-radius:999px; overflow:hidden;
+    border:2px solid rgba(255,255,255,.25);
+    background:linear-gradient(90deg,#ff3fa4,#ffd93d 34%,#4dff9d 46%,#4dff9d 54%,#ffd93d 66%,#ff3fa4);
+    box-shadow:inset 0 0 12px rgba(0,0,0,.6), 0 0 14px rgba(255,63,164,.25);
+  }
+  .gauge-track::after{
+    content:""; position:absolute; left:50%; top:0; bottom:0; width:2px; margin-left:-1px;
+    background:rgba(0,0,0,.55);
+  }
+  .needle{
+    position:absolute; top:-5px; bottom:-5px; left:50%; width:6px; margin-left:-3px;
+    border-radius:4px; background:#fff;
+    box-shadow:0 0 10px #fff, 0 0 22px rgba(255,255,255,.7);
+    transition:left .09s linear; z-index:2;
+  }
+  .gauge-labels{
+    display:flex; justify-content:space-between; margin-top:6px;
+    font-size:10px; color:#9f8fc4; letter-spacing:1px;
+  }
+  .tuner-feedback{font-size:13px; font-weight:800; margin:10px 0; color:#ffe9a8; min-height:18px}
+  .tuner-stats{display:flex; gap:8px; flex-wrap:wrap}
+  .tuner-stats div{
+    flex:1 1 90px; text-align:center; padding:8px 6px; border-radius:12px;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
+  }
+  .tuner-stats b{display:block; font-size:18px; color:var(--yellow); font-variant-numeric:tabular-nums}
+  .tuner-stats span{font-size:10px; color:#a99bd0}
+  .note-history{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; min-height:22px}
+  .note-chip{
+    font-size:11px; padding:3px 8px; border-radius:999px; font-weight:700;
+    border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.06);
+    color:#fff; animation:chipIn .25s ease-out;
+  }
+  @keyframes chipIn{ from{transform:scale(.6); opacity:0} to{transform:scale(1); opacity:1} }
+
+  /* 键盘动画 */
+  .keyboard{
+    position:relative; margin-top:12px; height:96px; padding:8px; border-radius:12px;
+    background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.5));
+    border:2px solid rgba(255,255,255,.16); box-shadow:inset 0 0 18px rgba(0,0,0,.6);
+  }
+  .keys{position:relative; height:100%}
+  .key{transition:transform .1s, background .1s, box-shadow .1s; box-sizing:border-box}
+  .key.white{
+    position:absolute; top:0; height:100%; width:14.2857%;
+    border:1px solid #2a1040; border-radius:4px 4px 7px 7px;
+    background:linear-gradient(180deg,#fff,#d9d2ee 70%,#b7aad4);
+    color:#4a2b66; padding-bottom:5px; display:flex; align-items:flex-end; justify-content:center;
+  }
+  .key.white i{font-style:normal; font-size:9px; font-weight:800}
+  .key.black{
+    position:absolute; top:0; height:58%; width:9%; z-index:2;
+    border:1px solid #000; border-radius:3px 3px 5px 5px;
+    background:linear-gradient(180deg,#3a1a55,#12001f);
+    box-shadow:0 3px 6px rgba(0,0,0,.6);
+  }
+  .key.lit{--lit:#4dff9d}
+  .key.lit-close{--lit:#ffd93d}
+  .key.lit-off{--lit:#ff3fa4}
+  .key.white.lit, .key.white.lit-close, .key.white.lit-off{
+    background:linear-gradient(180deg,#fff,var(--lit));
+    box-shadow:0 0 22px var(--lit), inset 0 0 12px rgba(255,255,255,.9);
+    color:#101018; transform:translateY(2px);
+  }
+  .key.black.lit, .key.black.lit-close, .key.black.lit-off{
+    background:linear-gradient(180deg,var(--lit),#12001f);
+    box-shadow:0 0 18px var(--lit); transform:translateY(2px);
+  }
+  .key-bubble{
+    position:absolute; bottom:100%; left:50%; z-index:5; pointer-events:none;
+    font-size:15px; font-weight:900; color:#4dff9d; white-space:nowrap;
+    text-shadow:0 0 10px currentColor, 0 2px 0 #000;
+    animation:bubbleUp .9s ease-out forwards;
+  }
+  @keyframes bubbleUp{
+    0%{opacity:0; transform:translate(-50%,12px) scale(.7)}
+    25%{opacity:1; transform:translate(-50%,0) scale(1.1)}
+    100%{opacity:0; transform:translate(-50%,-46px) scale(1)}
+  }
+
+  /* 小星星跟弹 */
+  .song-card{grid-column:1 / -1}
+  .song-bar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
+  .song-free{display:flex; align-items:center; gap:5px}
+  .song-free input{accent-color:var(--pink)}
+  .song-target{font-size:14px; color:#cfc0ff; margin-bottom:8px}
+  .song-target b{font-size:24px; color:#ffd93d; text-shadow:0 0 14px rgba(255,217,61,.8); letter-spacing:1px}
+  .song-target span{font-size:12px; color:#a99bd0}
+  .song-strip{
+    display:flex; gap:5px; overflow-x:auto; padding:8px 4px; margin-bottom:8px;
+    border-radius:12px; background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.1);
+    scrollbar-width:thin;
+  }
+  .song-chip{
+    flex:0 0 auto; font-size:12px; font-weight:800; padding:6px 9px; border-radius:8px;
+    border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.04); color:#8e7fae;
+    transition:.15s;
+  }
+  .song-chip.done{background:rgba(77,255,157,.16); border-color:#4dff9d; color:#4dff9d}
+  .song-chip.now{
+    color:#2b0030; border-color:#fff;
+    background:linear-gradient(135deg,#ffd93d,#ff9ad6);
+    box-shadow:0 0 16px rgba(255,217,61,.8); transform:translateY(-2px);
+  }
+  .song-chip.bad{
+    color:#fff; border-color:#fff; background:#ff3fa4;
+    animation:chipShake .3s linear;
+  }
+  @keyframes chipShake{
+    0%,100%{transform:translateX(0)}
+    25%{transform:translateX(-4px)}
+    75%{transform:translateX(4px)}
+  }
+  .song-feedback{font-size:13px; font-weight:800; color:#ffe9a8; min-height:18px; margin:8px 0 10px}
+
+  /* ---------- 特效层 ---------- */
+  .pop{
+    position:fixed; left:50%; top:42%; z-index:980; pointer-events:none;
+    font-size:clamp(20px,4vw,32px); font-weight:900; letter-spacing:2px; white-space:nowrap;
+    transform:translate(-50%,-50%); text-shadow:0 0 12px currentColor, 0 3px 0 #000;
+    animation:popUp 1.4s ease-out forwards;
+  }
+  @keyframes popUp{
+    0%{opacity:0; transform:translate(-50%,-30%) scale(.6) rotate(-8deg)}
+    18%{opacity:1; transform:translate(-50%,-50%) scale(1.15) rotate(3deg)}
+    70%{opacity:1; transform:translate(-50%,-70%) scale(1)}
+    100%{opacity:0; transform:translate(-50%,-110%) scale(.96)}
+  }
+  body.shake{animation:quake .5s linear}
+  @keyframes quake{
+    0%,100%{transform:translate(0,0)}
+    20%{transform:translate(-8px,4px) rotate(-.6deg)}
+    40%{transform:translate(7px,-5px) rotate(.6deg)}
+    60%{transform:translate(-6px,-3px)}
+    80%{transform:translate(5px,4px)}
+  }
+
+  /* ---------- 专注模式 ---------- */
+  body.zen .tasks-card, body.zen .reward-card, body.zen .future-card,
+  body.zen .tuner-card, body.zen .song-card{display:none}
+  body.zen main{grid-template-columns:1fr}
+  body.zen .timer-card{max-width:600px; margin:0 auto}
+  body.zen .ring-wrap{width:min(92%,380px)}
+
+  @media (max-width:900px){
+    main{grid-template-columns:1fr}
+    .timer-card{grid-row:auto}
+    .tuner-body{grid-template-columns:1fr; gap:12px}
+    .note-big{text-align:center}
+    .note-sub{text-align:center}
+    .tuner-actions{justify-content:center}
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<canvas id="fx"></canvas>
+<div id="flash"></div>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="ticker"><span>★ ADHD 友好 ★ 一次只做一件事 ★ 25 分钟专注 ★ 做完就有奖励 ★ 练琴不靠意志力 ★ 五毛特效 童叟无欺 ★</span></div>
+    <h1>🎹 音 乐 番 茄 钟</h1>
+    <p class="tagline">给成年 ADHD 的练琴外挂 v0.1 · 只盯一个圆圈 · <b>只做一件事</b></p>
+  </header>
+
+  <main>
+    <!-- 计时器 -->
+    <section class="card timer-card">
+      <div class="pills">
+        <button class="pill active" data-mode="focus">专注 25</button>
+        <button class="pill" data-mode="short">短休 5</button>
+        <button class="pill" data-mode="long">长休 15</button>
+      </div>
+
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 280 280" aria-hidden="true">
+          <defs>
+            <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ff3fa4"/>
+              <stop offset="50%" stop-color="#ffd93d"/>
+              <stop offset="100%" stop-color="#00f0ff"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-bg" cx="140" cy="140" r="124"/>
+          <circle class="ring-fg" id="ringFg" cx="140" cy="140" r="124"/>
+        </svg>
+        <div class="ring-inner">
+          <div class="time" id="timeText">25:00</div>
+          <div class="mode-label" id="modeLabel">待机 · 按开始</div>
+          <div class="tomatoes" id="tomatoDots">今天 🍅 × 0　目标 4</div>
+        </div>
+      </div>
+
+      <div class="timer-btns">
+        <button class="btn primary" id="startBtn">▶ 开始专注</button>
+        <button class="btn" id="resetBtn">↺ 重置</button>
+        <button class="btn" id="skipBtn">⏭ 跳过</button>
+      </div>
+
+      <div class="sub-row">
+        <button class="mini" id="zenBtn">🧘 专注模式</button>
+        <button class="mini" id="muteBtn">🔊 音效开</button>
+        <div class="mini metro">
+          <span>🥁</span>
+          <input id="bpm" type="range" min="40" max="160" value="80" />
+          <span id="bpmVal">80</span>
+          <button class="mini-btn" id="metroBtn">开</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 任务 -->
+    <section class="card tasks-card">
+      <h2>📝 今日练琴任务 <span class="hint">做完点一下 → 领星星</span></h2>
+      <form class="task-form" id="taskForm">
+        <input id="taskInput" maxlength="40" placeholder="比如：哈农 第2条 慢练 5 遍" autocomplete="off" />
+        <select id="taskReward">
+          <option value="1">⭐ 简单</option>
+          <option value="2" selected>⭐⭐ 一般</option>
+          <option value="3">⭐⭐⭐ 硬核</option>
+        </select>
+        <button class="btn small" type="submit">＋ 添加</button>
+      </form>
+      <ul class="task-list" id="taskList"></ul>
+      <p class="hint" style="margin:10px 0 0">一次只做一条。做完一条，再开下一个番茄。</p>
+    </section>
+
+    <!-- 奖励 -->
+    <section class="card reward-card">
+      <h2>🏆 我的奖励箱</h2>
+      <div class="star-big"><span id="starCount">0</span><span class="star-ico">⭐</span></div>
+      <div class="level">
+        <div class="level-top"><span id="levelName">Lv.1 键盘新手</span><span id="lvText">0 / 10</span></div>
+        <div class="bar"><i id="lvBar"></i></div>
+      </div>
+      <div class="badges" id="badges"></div>
+      <button class="btn shop" id="fireworkBtn">🎆 花 5⭐ 放一场五毛烟花</button>
+      <button class="btn shop" id="shakeBtn">💥 花 3⭐ 让屏幕抖三抖</button>
+    </section>
+
+    <!-- 实时音准 -->
+    <section class="card tuner-card" id="tunerCard">
+      <h2>🎼 实时音准 <span class="hint">麦克风本地识别，音频不上传</span></h2>
+      <div class="tuner-body">
+        <div class="tuner-note">
+          <div class="note-big" id="noteName">--</div>
+          <div class="note-sub" id="noteSub">点下面开启麦克风</div>
+          <div class="tuner-actions">
+            <button class="btn small primary" id="micBtn">🎤 开启麦克风</button>
+            <button class="mini" id="refBtn">🔔 A4 参考音</button>
+          </div>
+        </div>
+        <div class="tuner-meter">
+          <div class="gauge">
+            <div class="gauge-track"><div class="needle" id="needle"></div></div>
+            <div class="gauge-labels"><span>低 -50</span><span>-25</span><span>准</span><span>+25</span><span>高 +50</span></div>
+          </div>
+          <div class="keyboard" id="keyboard">
+            <div class="keys">
+              <span class="key white" data-pc="0" style="left:0"><i>do</i></span>
+              <span class="key white" data-pc="2" style="left:14.2857%"><i>re</i></span>
+              <span class="key white" data-pc="4" style="left:28.5714%"><i>mi</i></span>
+              <span class="key white" data-pc="5" style="left:42.8571%"><i>fa</i></span>
+              <span class="key white" data-pc="7" style="left:57.1428%"><i>sol</i></span>
+              <span class="key white" data-pc="9" style="left:71.4285%"><i>la</i></span>
+              <span class="key white" data-pc="11" style="left:85.7142%"><i>si</i></span>
+              <span class="key black" data-pc="1" style="left:9.79%"></span>
+              <span class="key black" data-pc="3" style="left:24.07%"></span>
+              <span class="key black" data-pc="6" style="left:52.64%"></span>
+              <span class="key black" data-pc="8" style="left:66.93%"></span>
+              <span class="key black" data-pc="10" style="left:81.21%"></span>
+            </div>
+          </div>
+          <div class="tuner-feedback" id="tunerFeedback">还没开始 · 弹一个音试试</div>
+          <div class="tuner-stats">
+            <div><b id="statAim">0%</b><span>在调占比</span></div>
+            <div><b id="statStreak">0.0s</b><span>连续在调</span></div>
+            <div><b id="statBonus">0</b><span>音准星星</span></div>
+          </div>
+          <div class="note-history" id="noteHistory"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 小星星跟弹 -->
+    <section class="card song-card" id="songCard">
+      <h2>⭐ 小星星跟弹 <span class="hint">弹对自动往下走，弹错不扣分</span></h2>
+      <div class="song-bar">
+        <button class="btn small primary" id="songStartBtn">▶ 开始跟弹</button>
+        <button class="mini" id="songResetBtn">↺ 重来</button>
+        <label class="mini song-free"><input type="checkbox" id="songOctFree" checked /> 八度不限</label>
+        <span class="hint" id="songProgress">0 / 42</span>
+      </div>
+      <div class="song-target" id="songTarget">下一个：<b>do</b> <span>（C4）</span></div>
+      <div class="song-strip" id="songStrip"></div>
+      <div class="song-feedback" id="songFeedback">点「开始跟弹」，然后从第一个 do 弹起</div>
+      <div class="tuner-stats">
+        <div><b id="songRight">0</b><span>弹对</span></div>
+        <div><b id="songWrong">0</b><span>弹错</span></div>
+        <div><b id="songAcc">--</b><span>准确率</span></div>
+      </div>
+    </section>
+
+    <!-- 未来 -->
+    <section class="card future-card">
+      <h2>🚧 未来功能（画饼区）</h2>
+      <div class="future-grid">
+        <div class="future-item">
+          <b>📹 和软件打视频电话</b>
+          <span>摄像头开着，AI 陪练盯着你的手型和坐姿</span>
+          <em>施工中</em>
+        </div>
+        <div class="future-item">
+          <b>📊 每周练琴报告</b>
+          <span>把音准、番茄、任务自动整理成一张图</span>
+          <em>构想</em>
+        </div>
+        <div class="future-item">
+          <b>🤖 自动降难度</b>
+          <span>你崩了，它就偷偷把今天任务调简单</span>
+          <em>构想</em>
+        </div>
+      </div>
+      <p class="hint" style="margin:10px 0 0">先把番茄钟跑起来，剩下的以后再说。</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const $ = s => document.querySelector(s);
+  const KEY = "piano_pomo_v1";
+  const RING_C = 2 * Math.PI * 124;
+
+  const MODES = {
+    focus: { min: 25, label: "专注中 · 别摸手机", idle: "待机 · 按开始" },
+    short: { min: 5,  label: "短休息 · 起来走两步", idle: "待机 · 按开始" },
+    long:  { min: 15, label: "长休息 · 去喝水", idle: "待机 · 按开始" }
+  };
+
+  const LEVELS = ["键盘新手","节拍小白","音阶学徒","琶音小妖","练琴上瘾者","节拍大师","琴键狂魔","人间节拍器"];
+
+  const BADGES = [
+    { need: 3,  ico: "🍅", name: "坚持了3个番茄" },
+    { need: 10, ico: "🎹", name: "练琴上瘾" },
+    { need: 30, ico: "🏆", name: "琴房常客" },
+    { need: 60, ico: "🚀", name: "离谱，太离谱了" }
+  ];
+
+  const S = {
+    mode: "focus",
+    running: false,
+    remaining: 25 * 60 * 1000,
+    endAt: 0,
+    todayPomos: 0,
+    stars: 0,
+    totalStars: 0,
+    tasks: [],
+    mute: false,
+    bpm: 80,
+    metro: false,
+    date: ""
+  };
+
+  let loopId = null;
+  let metroId = null;
+  let beatCount = 0;
+  let audioCtx = null;
+
+  /* ---------------- 存储 ---------------- */
+  function defaultTasks(){
+    return [
+      { id: uid(), text: "哈农 第1条 · 慢速 4 遍", reward: 2, done: false },
+      { id: uid(), text: "C 大调音阶 · 双手合", reward: 2, done: false },
+      { id: uid(), text: "曲子 A 段 · 3 遍", reward: 3, done: false },
+      { id: uid(), text: "视奏 5 分钟", reward: 1, done: false }
+    ];
+  }
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(KEY);
+      if(raw){
+        const d = JSON.parse(raw);
+        ["mode","stars","totalStars","tasks","mute","bpm"].forEach(k => {
+          if(d[k] !== undefined) S[k] = d[k];
+        });
+        S.remaining = typeof d.remaining === "number" ? d.remaining : MODES[S.mode].min * 60000;
+        S.todayPomos = d.todayPomos || 0;
+        S.date = d.date || "";
+      }
+    }catch(e){ /* 忽略坏数据 */ }
+
+    const today = new Date().toDateString();
+    if(S.date !== today){ S.date = today; S.todayPomos = 0; }
+    if(!MODES[S.mode]) S.mode = "focus";
+    if(!Array.isArray(S.tasks) || !S.tasks.length) S.tasks = defaultTasks();
+    S.running = false;
+    if(S.remaining > MODES[S.mode].min * 60000) S.remaining = MODES[S.mode].min * 60000;
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(KEY, JSON.stringify({
+        mode: S.mode, remaining: S.remaining, todayPomos: S.todayPomos,
+        stars: S.stars, totalStars: S.totalStars, tasks: S.tasks,
+        mute: S.mute, bpm: S.bpm, date: S.date
+      }));
+    }catch(e){ /* 存储满了也不崩 */ }
+  }
+
+  /* ---------------- 声音 ---------------- */
+  function ensureAudio(){
+    if(S.mute) return;
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if(audioCtx.state === "suspended") audioCtx.resume();
+    }catch(e){ audioCtx = null; }
+  }
+
+  function tone(freq, dur, type, vol, delay){
+    if(S.mute || !audioCtx) return;
+    dur = dur || 0.12; type = type || "square"; vol = vol || 0.05; delay = delay || 0;
+    const t0 = audioCtx.currentTime + delay;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+
+  function chime(){
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.28, "triangle", 0.07, i * 0.09));
+  }
+
+  function clickSound(accent){
+    tone(accent ? 1760 : 1100, 0.04, "square", 0.05);
+  }
+
+  /* ---------------- 计时 ---------------- */
+  function fmt(ms){
+    const t = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(t / 60), s = t % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function durationOf(mode){ return MODES[mode].min * 60000; }
+
+  function renderTimer(){
+    const total = durationOf(S.mode);
+    const rem = Math.max(0, S.remaining);
+    const elapsedFrac = Math.min(1, Math.max(0, 1 - rem / total));
+
+    $("#timeText").textContent = fmt(rem);
+    $("#timeText").classList.toggle("ticking", S.running);
+    $("#ringFg").style.strokeDasharray = RING_C;
+    $("#ringFg").style.strokeDashoffset = (RING_C * elapsedFrac).toFixed(2);
+
+    if(S.running){
+      $("#modeLabel").textContent = MODES[S.mode].label;
+    }else if(rem < total){
+      $("#modeLabel").textContent = "已暂停 · 按继续";
+    }else{
+      $("#modeLabel").textContent = MODES[S.mode].idle;
+    }
+
+    $("#startBtn").textContent = S.running ? "⏸ 暂停" : (S.mode === "focus" ? "▶ 开始专注" : "▶ 开始休息");
+    $("#tomatoDots").textContent = "今天 🍅 × " + S.todayPomos + "　目标 4";
+
+    document.title = (S.running ? "⏳ " + fmt(rem) + " · " : "") + "🎹 音乐番茄钟";
+  }
+
+  function tick(){
+    if(!S.running) return;
+    S.remaining = S.endAt - Date.now();
+    if(S.remaining <= 0){ S.remaining = 0; finish(); return; }
+    renderTimer();
+  }
+
+  function start(){
+    ensureAudio();
+    if(S.running) return;
+    if(S.remaining <= 0) S.remaining = durationOf(S.mode);
+    S.endAt = Date.now() + S.remaining;
+    S.running = true;
+    if(!loopId) loopId = setInterval(tick, 200);
+    renderTimer();
+    pop("开始！别摸手机 📵", "#00f0ff");
+  }
+
+  function pause(){
+    if(!S.running) return;
+    S.remaining = Math.max(0, S.endAt - Date.now());
+    S.running = false;
+    if(loopId){ clearInterval(loopId); loopId = null; }
+    renderTimer(); save();
+    pop("暂停 · 喝口水再回来", "#a855f7");
+  }
+
+  function resetTimer(){
+    S.running = false;
+    if(loopId){ clearInterval(loopId); loopId = null; }
+    S.remaining = durationOf(S.mode);
+    renderTimer(); save();
+  }
+
+  function setMode(mode, silent){
+    if(!MODES[mode]) return;
+    S.mode = mode;
+    S.running = false;
+    if(loopId){ clearInterval(loopId); loopId = null; }
+    S.remaining = durationOf(mode);
+    document.querySelectorAll(".pill").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+    renderTimer(); save();
+    if(!silent) pop(mode === "focus" ? "专注模式 ON 🎯" : "休息模式 ON ☕", "#ffd93d");
+  }
+
+  function finish(){
+    S.running = false;
+    if(loopId){ clearInterval(loopId); loopId = null; }
+    S.remaining = 0;
+    renderTimer();
+
+    if(S.mode === "focus"){
+      S.todayPomos += 1;
+      addStars(1);
+      chime();
+      flash();
+      burst(70);
+      pop("🍅 番茄 +1 ！星星 +1 ⭐", "#ffd93d");
+      save();
+      setTimeout(function(){
+        setMode(S.todayPomos % 4 === 0 ? "long" : "short");
+      }, 700);
+    }else{
+      chime();
+      burst(26);
+      pop("休息结束，回来练琴啦～", "#00f0ff");
+      save();
+      setTimeout(function(){ setMode("focus"); }, 700);
+    }
+    renderAll();
+  }
+
+  function skip(){
+    S.running = false;
+    if(loopId){ clearInterval(loopId); loopId = null; }
+    const next = S.mode === "focus" ? "short" : "focus";
+    setMode(next, true);
+    pop("跳过了，没关系的 🙂", "#a855f7");
+  }
+
+  /* ---------------- 任务 ---------------- */
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+
+  function renderTasks(){
+    const ul = $("#taskList");
+    ul.innerHTML = "";
+    S.tasks.forEach(function(t){
+      const li = document.createElement("li");
+      li.className = "task" + (t.done ? " done" : "");
+      li.innerHTML =
+        '<button class="check" data-id="' + t.id + '" title="完成">' + (t.done ? "✔" : "○") + "</button>" +
+        '<span class="txt">' + escapeHtml(t.text) + "</span>" +
+        '<span class="rw">' + "⭐".repeat(t.reward) + "</span>" +
+        '<button class="del" data-del="' + t.id + '" title="删除">✕</button>';
+      ul.appendChild(li);
+    });
+  }
+
+  function addTask(text, reward){
+    S.tasks.unshift({ id: uid(), text: text, reward: reward, done: false });
+    save(); renderTasks();
+    pop("任务 +1，先做它 👇", "#00f0ff");
+  }
+
+  function toggleTask(id){
+    const t = S.tasks.find(x => x.id === id);
+    if(!t) return;
+    t.done = !t.done;
+    if(t.done){
+      addStars(t.reward);
+      chime();
+      burst(50);
+      flash();
+      pop("✔ 完成！+" + t.reward + " ⭐", "#ffd93d");
+    }else{
+      S.stars = Math.max(0, S.stars - t.reward);
+      S.totalStars = Math.max(0, S.totalStars - t.reward);
+      renderRewards();
+    }
+    save(); renderTasks();
+  }
+
+  function deleteTask(id){
+    S.tasks = S.tasks.filter(x => x.id !== id);
+    save(); renderTasks();
+  }
+
+  /* ---------------- 奖励 ---------------- */
+  function addStars(n){
+    S.stars += n;
+    S.totalStars += n;
+    save();
+    renderRewards();
+  }
+
+  function renderRewards(){
+    const total = S.totalStars;
+    const lv = 1 + Math.floor(total / 10);
+    const inLv = total % 10;
+    const nameIdx = Math.min(lv - 1, LEVELS.length - 1);
+
+    $("#starCount").textContent = S.stars;
+    $("#levelName").textContent = "Lv." + lv + " " + LEVELS[nameIdx];
+    $("#lvText").textContent = inLv + " / 10";
+    $("#lvBar").style.width = (inLv / 10 * 100) + "%";
+
+    const box = $("#badges");
+    box.innerHTML = "";
+    BADGES.forEach(function(b){
+      const el = document.createElement("span");
+      el.className = "badge" + (total >= b.need ? " on" : "");
+      el.textContent = b.ico + " " + b.name + "（" + b.need + "）";
+      box.appendChild(el);
+    });
+  }
+
+  /* ---------------- 特效 ---------------- */
+  const cv = document.getElementById("fx");
+  const ctx = cv.getContext("2d");
+  let parts = [];
+  let rafId = null;
+
+  function sizeFx(){ cv.width = window.innerWidth; cv.height = window.innerHeight; }
+  sizeFx();
+  window.addEventListener("resize", sizeFx);
+
+  function burst(n, chars){
+    chars = chars || ["🎵","⭐","🎹","✨","🍅","🎶"];
+    for(let i = 0; i < n; i++){
+      parts.push({
+        x: cv.width / 2 + (Math.random() - 0.5) * 160,
+        y: cv.height / 2 + (Math.random() - 0.5) * 80,
+        vx: (Math.random() - 0.5) * 11,
+        vy: -Math.random() * 11 - 2,
+        rot: Math.random() * 6.28,
+        vr: (Math.random() - 0.5) * 0.35,
+        size: 15 + Math.random() * 20,
+        life: 1,
+        ch: chars[Math.floor(Math.random() * chars.length)]
+      });
+    }
+    if(!rafId) rafId = requestAnimationFrame(loopFx);
+  }
+
+  function loopFx(){
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for(let i = 0; i < parts.length; i++){
+      const p = parts[i];
+      p.vy += 0.34;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.995;
+      p.rot += p.vr;
+      p.life -= 0.008;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.font = p.size + "px serif";
+      ctx.textAlign = "center";
+      ctx.fillText(p.ch, 0, 0);
+      ctx.restore();
+    }
+    parts = parts.filter(p => p.life > 0 && p.y < cv.height + 80);
+    if(parts.length){
+      rafId = requestAnimationFrame(loopFx);
+    }else{
+      rafId = null;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+    }
+  }
+
+  function flash(){
+    const f = document.getElementById("flash");
+    f.classList.remove("go");
+    void f.offsetWidth;
+    f.classList.add("go");
+  }
+
+  function pop(text, color){
+    const el = document.createElement("div");
+    el.className = "pop";
+    el.textContent = text;
+    el.style.color = color || "#ffd93d";
+    el.style.transform = "translate(-50%,-50%) rotate(" + (Math.random() * 10 - 5) + "deg)";
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 1500);
+  }
+
+  function firework(){
+    flash();
+    const spots = [[0.3,0.35],[0.7,0.3],[0.5,0.55],[0.25,0.6],[0.75,0.6]];
+    spots.forEach(function(sp, i){
+      setTimeout(function(){
+        const cx = cv.width * sp[0], cy = cv.height * sp[1];
+        for(let k = 0; k < 34; k++){
+          parts.push({
+            x: cx, y: cy,
+            vx: Math.cos(k / 34 * 6.28) * (3 + Math.random() * 6),
+            vy: Math.sin(k / 34 * 6.28) * (3 + Math.random() * 6),
+            rot: Math.random() * 6.28, vr: 0.2,
+            size: 14 + Math.random() * 16, life: 1,
+            ch: ["✨","🎆","🎇","⭐"][Math.floor(Math.random() * 4)]
+          });
+        }
+        if(!rafId) rafId = requestAnimationFrame(loopFx);
+        tone(880 + i * 120, 0.16, "triangle", 0.06);
+      }, i * 220);
+    });
+    pop("🎆 五毛烟花 · 童叟无欺 🎆", "#ff3fa4");
+  }
+
+  /* ---------------- 节拍器 ---------------- */
+  function restartMetro(){
+    if(metroId){ clearInterval(metroId); metroId = null; }
+    if(!S.metro) return;
+    beatCount = 0;
+    metroId = setInterval(function(){
+      clickSound(beatCount % 4 === 0);
+      beatCount++;
+    }, 60000 / S.bpm);
+  }
+
+  function toggleMetro(){
+    S.metro = !S.metro;
+    if(S.metro) ensureAudio();
+    restartMetro();
+    $("#metroBtn").textContent = S.metro ? "停" : "开";
+    $("#metroBtn").style.background = S.metro
+      ? "linear-gradient(135deg,#ff3fa4,#ffd93d)"
+      : "linear-gradient(135deg,#00f0ff,#ffd93d)";
+  }
+
+  /* ---------------- 实时音准（麦克风） ---------------- */
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const SOLFEGE = ["do","升do","re","升re","mi","fa","升fa","sol","升sol","la","升la","si"];
+
+  let micStream = null;
+  let micSrc = null;
+  let analyser = null;
+  let micTimer = null;
+  let micBuf = null;
+  let micOn = false;
+  let smoothMidi = null;
+  let lastVoiceAt = 0;
+  let lastTickAt = 0;
+  let voicedMs = 0;
+  let tunedMs = 0;
+  let streakMs = 0;
+  let bonusStars = 0;
+  let lastBonusAt = 0;
+  let lastNoteKey = "";
+
+  function getCtx(){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function midiToNote(m){
+    const name = NOTE_NAMES[((m % 12) + 12) % 12];
+    return name + (Math.floor(m / 12) - 1);
+  }
+
+  // 自相关音高检测（降采样一半，省算力）
+  function autoCorrelate(buf, rate){
+    const n = 1024;
+    const d = new Float32Array(n);
+    let rms = 0;
+    for(let i = 0; i < n; i++){
+      const v = (buf[2 * i] + buf[2 * i + 1]) * 0.5;
+      d[i] = v;
+      rms += v * v;
+    }
+    rms = Math.sqrt(rms / n);
+    if(rms < 0.006) return -1;
+
+    const sr = rate / 2;
+    let start = 0, end = n - 1;
+    const thres = 0.2;
+    for(let i = 0; i < n / 2; i++){ if(Math.abs(d[i]) < thres) start = i; else break; }
+    for(let i = 1; i < n / 2; i++){ if(Math.abs(d[n - i]) < thres) end = n - i; else break; }
+
+    const seg = d.subarray(start, end);
+    const len = seg.length;
+    if(len < 256) return -1;
+
+    const c = new Float32Array(len);
+    for(let i = 0; i < len; i++){
+      let sum = 0;
+      for(let j = 0; j < len - i; j++) sum += seg[j] * seg[j + i];
+      c[i] = sum;
+    }
+
+    let dip = 0;
+    while(dip < len - 1 && c[dip] > c[dip + 1]) dip++;
+
+    let maxval = -1, maxpos = -1;
+    for(let i = dip; i < len; i++){
+      if(c[i] > maxval){ maxval = c[i]; maxpos = i; }
+    }
+    let T0 = maxpos;
+    if(T0 <= 0 || T0 >= len - 1) return -1;
+
+    const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+    const a = (x1 + x3 - 2 * x2) / 2;
+    const b = (x3 - x1) / 2;
+    if(a) T0 = T0 - b / (2 * a);
+
+    const freq = sr / T0;
+    if(!isFinite(freq) || freq < 55 || freq > 2100) return -1;
+    return freq;
+  }
+
+  function setNeedle(cents){
+    const pct = Math.max(2, Math.min(98, 50 + cents / 50 * 50));
+    $("#needle").style.left = pct + "%";
+  }
+
+  function pushNoteChip(sol, oct, cents){
+    const box = $("#noteHistory");
+    const el = document.createElement("span");
+    el.className = "note-chip";
+    const ok = Math.abs(cents) <= 10;
+    el.textContent = sol + oct + (ok ? " ✓" : (cents < 0 ? " ↓" : " ↑"));
+    box.prepend(el);
+    while(box.children.length > 10) box.lastChild.remove();
+  }
+
+  // 点亮键盘上对应的键，并冒一个唱名气泡
+  function flashKey(pc, sol, state){
+    clearKeys();
+    const key = document.querySelector('.key[data-pc="' + pc + '"]');
+    if(!key) return;
+    key.classList.add(state === "in" ? "lit" : (state === "close" ? "lit-close" : "lit-off"));
+    const bub = document.createElement("span");
+    bub.className = "key-bubble";
+    bub.textContent = sol;
+    bub.style.left = (key.offsetLeft + key.offsetWidth / 2) + "px";
+    bub.style.color = state === "in" ? "#4dff9d" : (state === "close" ? "#ffd93d" : "#ff3fa4");
+    $("#keyboard").querySelector(".keys").appendChild(bub);
+    setTimeout(function(){ bub.remove(); }, 950);
+  }
+
+  function clearKeys(){
+    document.querySelectorAll(".key").forEach(function(k){
+      k.classList.remove("lit", "lit-close", "lit-off");
+    });
+  }
+
+  /* ---------------- 小星星跟弹 ---------------- */
+  const TWINKLE = [
+    "C4","C4","G4","G4","A4","A4","G4",
+    "F4","F4","E4","E4","D4","D4","C4",
+    "G4","G4","F4","F4","E4","E4","D4",
+    "G4","G4","F4","F4","E4","E4","D4",
+    "C4","C4","G4","G4","A4","A4","G4",
+    "F4","F4","E4","E4","D4","D4","C4"
+  ];
+
+  let songOn = false;
+  let songDone = false;
+  let songIdx = 0;
+  let songRight = 0;
+  let songWrong = 0;
+  let songOctFree = true;
+  let songCand = "";
+  let songCandSince = 0;
+  let songFired = false;
+
+  function parseNote(s){
+    const m = String(s).match(/^([A-G]#?)(-?\d+)$/);
+    if(!m) return null;
+    return { pc: NOTE_NAMES.indexOf(m[1]), oct: parseInt(m[2], 10) };
+  }
+
+  function solOf(s){
+    const p = parseNote(s);
+    return p ? SOLFEGE[p.pc] : s;
+  }
+
+  function noteMatch(det, target){
+    const a = parseNote(det), b = parseNote(target);
+    if(!a || !b) return false;
+    return songOctFree ? a.pc === b.pc : (a.pc === b.pc && a.oct === b.oct);
+  }
+
+  function updateSongStats(){
+    const total = songRight + songWrong;
+    $("#songRight").textContent = songRight;
+    $("#songWrong").textContent = songWrong;
+    $("#songAcc").textContent = total ? Math.round(songRight / total * 100) + "%" : "--";
+    $("#songProgress").textContent = songIdx + " / " + TWINKLE.length;
+  }
+
+  function renderSong(flashBad){
+    const strip = $("#songStrip");
+    if(!strip) return;
+    if(strip.children.length !== TWINKLE.length){
+      strip.innerHTML = "";
+      TWINKLE.forEach(function(n){
+        const sp = document.createElement("span");
+        sp.className = "song-chip";
+        sp.textContent = solOf(n);
+        strip.appendChild(sp);
+      });
+    }
+
+    for(let i = 0; i < TWINKLE.length; i++){
+      const el = strip.children[i];
+      el.classList.toggle("done", i < songIdx);
+      el.classList.toggle("now", i === songIdx && !songDone);
+      if(flashBad && i === songIdx) el.classList.add("bad");
+    }
+
+    const cur = strip.children[songIdx];
+    if(cur && !flashBad){
+      strip.scrollLeft = cur.offsetLeft - strip.clientWidth / 2 + cur.offsetWidth / 2;
+    }
+
+    if(songDone){
+      $("#songTarget").textContent = "🌟 全曲完成！";
+    }else{
+      const t = TWINKLE[songIdx];
+      $("#songTarget").innerHTML = '下一个：<b>' + solOf(t) + '</b> <span>（' + t + '）</span>';
+    }
+  }
+
+  function startSong(){
+    if(!micOn){
+      startMic();
+      pop("先开麦克风，马上开始听 🎤", "#00f0ff");
+    }
+    songOn = true;
+    songDone = false;
+    songIdx = 0;
+    songRight = 0;
+    songWrong = 0;
+    songCand = "";
+    songFired = false;
+    $("#songStartBtn").textContent = "🎵 跟弹中…";
+    $("#songFeedback").textContent = "从第一个音开始：do（C4）";
+    updateSongStats();
+    renderSong(false);
+  }
+
+  function finishSong(){
+    songDone = true;
+    renderSong(false);
+    $("#songStartBtn").textContent = "▶ 再来一遍";
+    $("#songFeedback").textContent = "整首小星星弹完啦 · 奖励 5⭐";
+    addStars(5);
+    chime();
+    flash();
+    burst(90);
+    pop("🌟 小星星 · 全曲完成！+5⭐", "#ffd93d");
+  }
+
+  function fireSongNote(note){
+    if(!songOn || songDone) return;
+    const target = TWINKLE[songIdx];
+    if(noteMatch(note, target)){
+      songRight++;
+      songIdx++;
+      if(songIdx >= TWINKLE.length){
+        updateSongStats();
+        finishSong();
+        return;
+      }
+      updateSongStats();
+      renderSong(false);
+      $("#songFeedback").textContent = "✔ 对了！下一个是 " + solOf(TWINKLE[songIdx]);
+      tone(880, 0.08, "triangle", 0.05);
+    }else{
+      songWrong++;
+      updateSongStats();
+      renderSong(true);
+      $("#songFeedback").textContent = "✘ 你弹的是 " + note + "（" + solOf(note) + "），这里应该是 " +
+        target + "（" + solOf(target) + "）· 再试一次";
+      setTimeout(function(){ renderSong(false); }, 700);
+    }
+  }
+
+  function resetTunerSession(){
+    smoothMidi = null;
+    lastVoiceAt = 0;
+    lastTickAt = 0;
+    voicedMs = 0; tunedMs = 0; streakMs = 0;
+    bonusStars = 0; lastBonusAt = 0;
+    lastNoteKey = "";
+    $("#noteHistory").innerHTML = "";
+    $("#statAim").textContent = "0%";
+    $("#statStreak").textContent = "0.0s";
+    $("#statBonus").textContent = "0";
+    $("#noteName").textContent = "--";
+    $("#noteSub").textContent = "弹一个音，键盘会亮";
+    $("#tunerFeedback").textContent = "在听…弹一个音试试";
+    clearKeys();
+  }
+
+  function updateTuner(freq){
+    const card = $("#tunerCard");
+    const now = performance.now();
+    const dt = lastTickAt ? Math.min(200, now - lastTickAt) : 0;
+    lastTickAt = now;
+
+    if(freq < 0){
+      streakMs = 0;
+      $("#statStreak").textContent = "0.0s";
+      setNeedle(0);
+      card.classList.remove("in-tune", "close", "off");
+      if(micOn){
+        $("#tunerFeedback").textContent = "没听到声音 · 靠近点，弹清楚一点";
+        $("#noteSub").textContent = "等你弹下一个音…";
+        if(now - lastVoiceAt > 400){ smoothMidi = null; lastNoteKey = ""; }
+        if(now - lastVoiceAt > 300) clearKeys();
+        if(now - lastVoiceAt > 200){ songCand = ""; songFired = false; }
+      }
+      return;
+    }
+
+    lastVoiceAt = now;
+    const midiFloat = 69 + 12 * Math.log2(freq / 440);
+    smoothMidi = (smoothMidi === null) ? midiFloat : smoothMidi * 0.65 + midiFloat * 0.35;
+
+    const nearest = Math.round(smoothMidi);
+    const cents = (smoothMidi - nearest) * 100;
+    const abs = Math.abs(cents);
+    const oct = Math.floor(nearest / 12) - 1;
+    const pc = ((nearest % 12) + 12) % 12;
+    const sol = SOLFEGE[pc];
+    const note = midiToNote(nearest);
+    const state = abs <= 10 ? "in" : (abs <= 25 ? "close" : "off");
+
+    $("#noteName").textContent = sol;
+    $("#noteName").classList.toggle("sharp", sol.length > 2);
+    $("#noteSub").textContent = note + " · " + (abs <= 5
+      ? "准 ✅"
+      : (cents < 0 ? "低 " + Math.round(abs) + " 音分 ↓" : "高 " + Math.round(abs) + " 音分 ↑"));
+
+    card.classList.remove("in-tune", "close", "off");
+    card.classList.add(abs <= 10 ? "in-tune" : (abs <= 25 ? "close" : "off"));
+    setNeedle(cents);
+
+    $("#tunerFeedback").textContent = abs <= 5 ? "准得离谱 🎯"
+      : abs <= 10 ? "很接近了，稳住"
+      : abs <= 25 ? (cents < 0 ? "再高一点点 ↑" : "再低一点点 ↓")
+      : (cents < 0 ? "偏低不少 😅 手往上挪一点" : "偏高不少 😅 手往下压一点");
+
+    voicedMs += dt;
+    if(abs <= 10){ tunedMs += dt; streakMs += dt; } else { streakMs = 0; }
+    $("#statAim").textContent = voicedMs > 200 ? Math.round(tunedMs / voicedMs * 100) + "%" : "0%";
+    $("#statStreak").textContent = (streakMs / 1000).toFixed(1) + "s";
+
+    if(streakMs >= 3000 && bonusStars < 5 && now - lastBonusAt > 12000){
+      bonusStars++;
+      lastBonusAt = now;
+      streakMs = 0;
+      addStars(1);
+      $("#statBonus").textContent = bonusStars;
+      tone(1046.5, 0.12, "triangle", 0.06);
+      pop("🎯 在调 3 秒 · +1⭐", "#4dff9d");
+    }
+
+    if(note !== lastNoteKey){
+      lastNoteKey = note;
+      flashKey(pc, sol, state);
+      pushNoteChip(sol, oct, cents);
+    }
+
+    // 小星星跟弹：同一个音稳定 120ms 才算“弹了一下”
+    if(songOn && !songDone && micOn){
+      if(note !== songCand){
+        songCand = note;
+        songCandSince = now;
+        songFired = false;
+      }else if(!songFired && now - songCandSince >= 120){
+        songFired = true;
+        fireSongNote(note);
+      }
+    }
+  }
+
+  function micLoop(){
+    if(!analyser || !micBuf) return;
+    analyser.getFloatTimeDomainData(micBuf);
+    updateTuner(autoCorrelate(micBuf, audioCtx.sampleRate));
+  }
+
+  function stopMic(){
+    micOn = false;
+    if(micTimer){ clearInterval(micTimer); micTimer = null; }
+    if(micSrc){ try{ micSrc.disconnect(); }catch(e){} micSrc = null; }
+    if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream = null; }
+    analyser = null;
+    $("#micBtn").textContent = "🎤 开启麦克风";
+    $("#noteName").textContent = "--";
+    $("#noteSub").textContent = "麦克风已关闭";
+    $("#tunerFeedback").textContent = "麦克风已关闭 · 随时可以再开";
+    $("#tunerCard").classList.remove("in-tune", "close", "off");
+    setNeedle(0);
+    $("#statStreak").textContent = "0.0s";
+    clearKeys();
+  }
+
+  function startMic(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      $("#tunerFeedback").textContent = "这个浏览器不支持麦克风，换 Chrome / Edge 试试";
+      pop("浏览器不支持麦克风 😢", "#ff3fa4");
+      return;
+    }
+    if(!window.isSecureContext){
+      $("#tunerFeedback").textContent = "麦克风需要 https 或 localhost，file:// 在部分浏览器会被拦";
+    }
+    navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    }).then(function(stream){
+      micStream = stream;
+      const c = getCtx();
+      micSrc = c.createMediaStreamSource(stream);
+      analyser = c.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0;
+      micSrc.connect(analyser);
+      micBuf = new Float32Array(analyser.fftSize);
+
+      micOn = true;
+      resetTunerSession();
+      if(micTimer) clearInterval(micTimer);
+      micTimer = setInterval(micLoop, 80);
+
+      $("#micBtn").textContent = "⏹ 关闭麦克风";
+      $("#noteName").textContent = "--";
+      pop("麦克风开了，弹吧 🎹", "#00f0ff");
+    }).catch(function(err){
+      const name = (err && err.name) || "";
+      let msg = "麦克风打不开：" + name;
+      if(name === "NotAllowedError" || name === "SecurityError") msg = "麦克风被拒绝了 · 点地址栏的锁图标允许一下";
+      else if(name === "NotFoundError" || name === "DevicesNotFoundError") msg = "没找到麦克风，插一个？";
+      else if(name === "NotReadableError") msg = "麦克风被别的程序占用了（会议软件？）";
+      $("#tunerFeedback").textContent = msg;
+      pop(msg, "#ff3fa4");
+    });
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  function renderAll(){
+    renderTimer();
+    renderTasks();
+    renderRewards();
+    $("#startBtn").textContent = S.running ? "⏸ 暂停" : (S.mode === "focus" ? "▶ 开始专注" : "▶ 开始休息");
+  }
+
+  /* ---------------- 事件 ---------------- */
+  $("#startBtn").addEventListener("click", function(){
+    if(S.running) pause(); else start();
+  });
+  $("#resetBtn").addEventListener("click", resetTimer);
+  $("#skipBtn").addEventListener("click", skip);
+
+  document.querySelectorAll(".pill").forEach(function(b){
+    b.addEventListener("click", function(){ ensureAudio(); setMode(b.dataset.mode); });
+  });
+
+  $("#taskForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    const input = $("#taskInput");
+    const text = input.value.trim();
+    if(!text) { input.focus(); return; }
+    addTask(text, parseInt($("#taskReward").value, 10) || 1);
+    input.value = "";
+    input.focus();
+  });
+
+  $("#taskList").addEventListener("click", function(e){
+    const chk = e.target.closest(".check");
+    if(chk){ ensureAudio(); toggleTask(chk.dataset.id); return; }
+    const del = e.target.closest(".del");
+    if(del){ deleteTask(del.dataset.del); }
+  });
+
+  $("#fireworkBtn").addEventListener("click", function(){
+    if(S.stars < 5){ pop("星星不够！再干一个番茄 🍅", "#ff3fa4"); return; }
+    S.stars -= 5;
+    ensureAudio();
+    renderRewards(); save();
+    firework();
+  });
+
+  $("#shakeBtn").addEventListener("click", function(){
+    if(S.stars < 3){ pop("星星不够！先做一条任务 ⭐", "#ff3fa4"); return; }
+    S.stars -= 3;
+    renderRewards(); save();
+    document.body.classList.add("shake");
+    setTimeout(function(){ document.body.classList.remove("shake"); }, 520);
+    tone(120, 0.22, "sawtooth", 0.08);
+    pop("💥 抖三抖 · 别晕", "#00f0ff");
+  });
+
+  $("#zenBtn").addEventListener("click", function(){
+    document.body.classList.toggle("zen");
+    const on = document.body.classList.contains("zen");
+    this.textContent = on ? "🚪 退出专注" : "🧘 专注模式";
+    pop(on ? "专注模式：别的都藏起来了 🎯" : "回到普通模式", "#a855f7");
+  });
+
+  $("#muteBtn").addEventListener("click", function(){
+    S.mute = !S.mute;
+    this.textContent = S.mute ? "🔇 音效关" : "🔊 音效开";
+    if(!S.mute) ensureAudio();
+    save();
+  });
+
+  $("#bpm").addEventListener("input", function(){
+    S.bpm = parseInt(this.value, 10) || 80;
+    $("#bpmVal").textContent = S.bpm;
+    restartMetro();
+    save();
+  });
+
+  $("#metroBtn").addEventListener("click", function(){ ensureAudio(); toggleMetro(); });
+
+  $("#micBtn").addEventListener("click", function(){
+    if(micOn) stopMic(); else startMic();
+  });
+
+  $("#refBtn").addEventListener("click", function(){
+    const btn = this;
+    btn.textContent = "🔔 播放中…";
+    $("#tunerFeedback").textContent = "正在播放 A4 = 440Hz（3 秒）";
+    setTimeout(function(){
+      btn.textContent = "🔔 A4 参考音";
+      if(micOn) $("#tunerFeedback").textContent = "在听…弹一个音试试";
+    }, 3000);
+
+    if(S.mute){
+      S.mute = false;
+      $("#muteBtn").textContent = "🔊 音效开";
+      save();
+      pop("顺便帮你打开音效 🔊", "#00f0ff");
+    }
+    let c = null;
+    try{ c = getCtx(); }catch(e){ c = null; }
+    if(!c){ pop("浏览器不让出声，换 Chrome / Edge 试试 😢", "#ff3fa4"); return; }
+
+    // 先给视觉反馈，避免“点了没反应”
+    pop("🔔 A4 = 440Hz · 听 3 秒", "#ffd93d");
+
+    const play = function(){
+      const t0 = c.currentTime + 0.06;
+      [440, 880].forEach(function(f, i){
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = i ? "sine" : "triangle";
+        o.frequency.setValueAtTime(f, t0);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(i ? 0.07 : 0.3, t0 + 0.03);
+        g.gain.setValueAtTime(i ? 0.07 : 0.3, t0 + 2.0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 2.8);
+        o.connect(g); g.connect(c.destination);
+        o.start(t0); o.stop(t0 + 2.9);
+      });
+    };
+
+    if(c.state === "suspended"){
+      const p = c.resume();
+      if(p && p.then) p.then(play).catch(play); else play();
+    }else{
+      play();
+    }
+  });
+
+  $("#songStartBtn").addEventListener("click", startSong);
+  $("#songResetBtn").addEventListener("click", startSong);
+  $("#songOctFree").addEventListener("change", function(){
+    songOctFree = this.checked;
+    renderSong(false);
+  });
+
+  document.addEventListener("keydown", function(e){
+    const tag = (e.target.tagName || "").toLowerCase();
+    if(tag === "input" || tag === "select" || tag === "textarea") return;
+    if(e.code === "Space"){
+      e.preventDefault();
+      if(S.running) pause(); else start();
+    }
+  });
+
+  window.addEventListener("beforeunload", save);
+
+  /* ---------------- 启动 ---------------- */
+  load();
+  document.querySelectorAll(".pill").forEach(function(b){
+    b.classList.toggle("active", b.dataset.mode === S.mode);
+  });
+  $("#muteBtn").textContent = S.mute ? "🔇 音效关" : "🔊 音效开";
+  $("#bpm").value = S.bpm;
+  $("#bpmVal").textContent = S.bpm;
+  renderAll();
+  renderSong(false);
+})();
+</script>
+</body>
+</html>
