@@ -405,6 +405,7 @@
     .tuner-actions{justify-content:center}
   }
 </style>
+<link rel="stylesheet" href="theme.css" />
 </head>
 <body>
 <div class="scanlines"></div>
@@ -413,14 +414,14 @@
 
 <div class="wrap">
   <header class="topbar">
-    <div class="ticker"><span>★ ADHD 友好 ★ 一次只做一件事 ★ 25 分钟专注 ★ 做完就有奖励 ★ 练琴不靠意志力 ★ 五毛特效 童叟无欺 ★</span></div>
-    <h1>🎹 音 乐 番 茄 钟</h1>
-    <p class="tagline">给成年 ADHD 的练琴外挂 v0.1 · 只盯一个圆圈 · <b>只做一件事</b></p>
+    <div class="ticker"><div class="brand"><span class="brand-mark">♬</span> PIANO / POMODORO</div><div class="edition">练习空间 · VOL. 02</div></div>
+    <h1>音乐番茄钟<em>。</em></h1>
+    <p class="tagline">给 ADHD 的轻量练琴空间。少一点分心，<b>一次只做一件事。</b></p><div class="hero-stamp" aria-hidden="true">LESS NOISE.<br>MORE MUSIC.</div>
   </header>
 
   <main>
     <!-- 计时器 -->
-    <section class="card timer-card">
+    <section class="card timer-card" aria-label="专注计时器"><div class="panel-kicker"><span>01 / FOCUS SESSION</span><span>● 找到你的节奏</span></div>
       <div class="pills">
         <button class="pill active" data-mode="focus">专注 25</button>
         <button class="pill" data-mode="short">短休 5</button>
@@ -457,7 +458,7 @@
         <button class="mini" id="muteBtn">🔊 音效开</button>
         <div class="mini metro">
           <span>🥁</span>
-          <input id="bpm" type="range" min="40" max="160" value="80" />
+          <input aria-label="节拍器速度" id="bpm" type="range" min="40" max="160" value="80" />
           <span id="bpmVal">80</span>
           <button class="mini-btn" id="metroBtn">开</button>
         </div>
@@ -466,10 +467,10 @@
 
     <!-- 任务 -->
     <section class="card tasks-card">
-      <h2>📝 今日练琴任务 <span class="hint">做完点一下 → 领星星</span></h2>
+      <h2>今日练琴任务 <span class="hint">做完点一下 → 领星星</span></h2>
       <form class="task-form" id="taskForm">
-        <input id="taskInput" maxlength="40" placeholder="比如：哈农 第2条 慢练 5 遍" autocomplete="off" />
-        <select id="taskReward">
+        <input aria-label="练琴任务内容" id="taskInput" maxlength="40" placeholder="比如：哈农 第2条 慢练 5 遍" autocomplete="off" />
+        <select id="taskReward" aria-label="任务奖励星数">
           <option value="1">⭐ 简单</option>
           <option value="2" selected>⭐⭐ 一般</option>
           <option value="3">⭐⭐⭐ 硬核</option>
@@ -482,7 +483,7 @@
 
     <!-- 奖励 -->
     <section class="card reward-card">
-      <h2>🏆 我的奖励箱</h2>
+      <h2>我的奖励箱</h2>
       <div class="star-big"><span id="starCount">0</span><span class="star-ico">⭐</span></div>
       <div class="level">
         <div class="level-top"><span id="levelName">Lv.1 键盘新手</span><span id="lvText">0 / 10</span></div>
@@ -495,7 +496,7 @@
 
     <!-- 实时音准 -->
     <section class="card tuner-card" id="tunerCard">
-      <h2>🎼 实时音准 <span class="hint">麦克风本地识别，音频不上传</span></h2>
+      <h2>实时音准 <span class="hint">麦克风本地识别，音频不上传</span></h2>
       <div class="tuner-body">
         <div class="tuner-note">
           <div class="note-big" id="noteName">--</div>
@@ -539,7 +540,7 @@
 
     <!-- 小星星跟弹 -->
     <section class="card song-card" id="songCard">
-      <h2>⭐ 小星星跟弹 <span class="hint">弹对自动往下走，弹错不扣分</span></h2>
+      <h2>小星星跟弹 <span class="hint">弹对自动往下走，弹错不扣分</span></h2>
       <div class="song-bar">
         <button class="btn small primary" id="songStartBtn">▶ 开始跟弹</button>
         <button class="mini" id="songResetBtn">↺ 重来</button>
@@ -578,7 +579,7 @@
       </div>
       <p class="hint" style="margin:10px 0 0">先把番茄钟跑起来，剩下的以后再说。</p>
     </section>
-  </main>
+  </main><footer class="footer-note"><span>一点点练习，也是一点点进步。</span><span>ONE THING AT A TIME.</span></footer>
 </div>
 
 <script>
