@@ -28,3 +28,12 @@ h2{font-size:17px;letter-spacing:0;font-weight:750;margin-bottom:18px}h2 .hint{d
 @media(max-width:540px){.wrap{padding:18px 12px 30px}.edition{font-size:9px;letter-spacing:0}.brand{font-size:11px;letter-spacing:1px}.hero-stamp{display:none}h1{font-size:38px;letter-spacing:-1px}.tagline{font-size:11px;letter-spacing:0}.topbar{margin-bottom:22px}.ticker{margin-bottom:22px}main{gap:14px}.card{padding:19px 15px}.timer-card{padding:22px 12px}.timer-btns .btn{padding:12px 15px}.timer-btns .primary{padding:12px 20px}.sub-row{gap:5px}.mini{padding:7px}.task-form input{flex-basis:100%}.task-form select{flex:1;max-width:none;min-height:38px}.star-big{right:16px}.footer-note{font-size:9px;letter-spacing:0}.future-grid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .ticker .brand-mark{display:inline-grid;padding:0;animation:none;font-size:18px;letter-spacing:0;color:#17200b;text-shadow:none;vertical-align:middle}.brand{display:flex;align-items:center}
+
+/* Static screen-print halftones, inspired by the reference poster. */
+body{position:relative;isolation:isolate}
+.print-texture{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.print-texture::before,.print-texture::after{content:"";position:absolute;display:block;transform:rotate(-18deg);background-repeat:repeat;mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat}
+.print-texture::before{width:540px;height:440px;right:-90px;top:-130px;background-image:radial-gradient(circle,#ff42ae 0 4px,transparent 4.8px);background-size:19px 19px;opacity:.72;mask-image:radial-gradient(ellipse at 80% 25%,#000 20%,#0009 46%,transparent 72%);-webkit-mask-image:radial-gradient(ellipse at 80% 25%,#000 20%,#0009 46%,transparent 72%)}
+.print-texture::after{width:410px;height:530px;left:-190px;top:520px;background-image:radial-gradient(circle,#b4ff39 0 3px,transparent 3.8px);background-size:15px 15px;opacity:.55;mask-image:radial-gradient(ellipse at 25% 50%,#000 12%,#000a 38%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at 25% 50%,#000 12%,#000a 38%,transparent 70%)}
+.hero-stamp{background:#21131df0}
+@media(max-width:540px){.print-texture::before{width:300px;height:280px;right:-125px;top:-80px;background-size:16px 16px;opacity:.55}.print-texture::after{left:-240px;opacity:.4}}
