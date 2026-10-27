@@ -906,6 +906,7 @@
   window.addEventListener("resize", sizeFx);
 
   function burst(n, chars){
+    if(window.PianoEffects){ window.PianoEffects.celebrate(n); return; }
     chars = chars || ["🎵","⭐","🎹","✨","🍅","🎶"];
     for(let i = 0; i < n; i++){
       parts.push({
@@ -952,6 +953,7 @@
   }
 
   function flash(){
+    if(window.PianoEffects) return;
     const f = document.getElementById("flash");
     f.classList.remove("go");
     void f.offsetWidth;
@@ -969,6 +971,11 @@
   }
 
   function firework(){
+    if(window.PianoEffects){
+      window.PianoEffects.fireworks();
+      tone(880, 0.16, "triangle", 0.06);
+      return;
+    }
     flash();
     const spots = [[0.3,0.35],[0.7,0.3],[0.5,0.55],[0.25,0.6],[0.75,0.6]];
     spots.forEach(function(sp, i){
@@ -1580,6 +1587,8 @@
   renderSong(false);
 })();
 </script>
+<script src="vendor/three.min.js"></script>
+<script src="effects-3d.js"></script>
 <script src="particles.js"></script>
 </body>
 </html>
