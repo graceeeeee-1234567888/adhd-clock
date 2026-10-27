@@ -12,14 +12,17 @@
   const palette=['#7aad85','#ce8ab2','#86afd3','#e2c77d'];
   const pointer={x:-1000,y:-1000,active:false};
   let width=innerWidth,height=innerHeight,frame=0,previous=0,time=0,nextAmbient=3;
-  let motes=[],bubbles=[],particles=[],rockets=[],waves=[],jobs=[],labels=[];
-  let stage=null,stageAttempted=false,boostUntil=0,lastTrail=0,partyUntil=0;
+  let motes=[],bubbles=[],particles=[],rockets=[],waves=[],jobs=[],labels=[],blooms=[];
+  let stage=null,stageAttempted=false,boostUntil=0,lastTrail=0,partyUntil=0,rewardUntil=0;
   const rand=(a,b)=>a+Math.random()*(b-a);
   const choose=array=>array[Math.floor(Math.random()*array.length)];
   const calm=()=>document.body.classList.contains('zen');
   const allowed=()=>enabled&&!preference.matches;
   const active=()=>allowed()&&!document.hidden;
   const cap=()=>width<600?850:1700;
+  // Small continuous outward bias, without an empty exclusion zone.
+  const outwardX=x=>x+Math.tanh((x-width/2)/100)*(width<600?12:18);
+  function bubblePosition(p) { return {x:outwardX(p.x)+Math.sin(time*.5+p.phase)*12,y:p.y}; }
   const consoleBox=document.createElement('section');
   consoleBox.className='fx-console';consoleBox.setAttribute('aria-label','五毛特效放映厅');
   consoleBox.innerHTML='<div class="fx-console-heading"><div><span class="fx-ticket" aria-hidden="true">✹</span><strong>五毛特效放映厅</strong><span class="fx-console-sub">快乐不用等练完</span></div></div><div class="fx-actions"><button type="button" class="fx-action" data-show="notes">♫ 音符暴雨</button><button type="button" class="fx-action" data-show="bubbles">◌ 泡泡喷泉</button><button type="button" class="fx-action" data-show="fireworks">✹ 烟花连发</button><button type="button" class="fx-action fx-action-big" data-show="party">★ 全部炸开</button></div><p class="fx-status" aria-live="polite">自由试玩 · 不消耗星星 · 鼠标划过会拖出星光</p>';
@@ -34,7 +37,12 @@
     const canvas=document.createElement('canvas');canvas.width=canvas.height=160;
     const c=canvas.getContext('2d');c.translate(80,80);
     c.lineJoin='round';c.shadowColor=color;c.shadowBlur=9;
-    if(kind==='bubble') {
+    if(kind==='glow') {
+      const g=c.createRadialGradient(0,0,0,0,0,76);
+      g.addColorStop(0,'#fffdf5');g.addColorStop(.08,'#fff6dfed');
+      g.addColorStop(.25,color+'b0');g.addColorStop(.55,color+'40');g.addColorStop(1,color+'00');
+      c.shadowBlur=0;c.fillStyle=g;c.fillRect(-80,-80,160,160);
+    } else if(kind==='bubble') {
       const gradient=c.createRadialGradient(-20,-25,2,0,0,62);
       gradient.addColorStop(0,'#fffdf380');gradient.addColorStop(.65,color+'12');gradient.addColorStop(.88,color+'55');gradient.addColorStop(1,color+'cc');
       c.fillStyle=gradient;c.beginPath();c.arc(0,0,61,0,Math.PI*2);c.fill();
@@ -72,21 +80,27 @@
     particles.push({x:0,y:0,vx:0,vy:0,life:2,total:2,size:5,kind:'star',color:choose(palette),angle:0,spin:0,gravity:45,drag:.35,...p});
   }
   function enqueue(delay,type,data={}) { if(jobs.length<40)jobs.push({at:time+delay,type,data}); }
-  function ring(x,y,color=choose(palette),radius=14) { if(waves.length<14)waves.push({x,y,color,radius,life:1.3,total:1.3}); }
+  function ring(x,y,color=choose(palette),radius=14,power=1) {
+    if(waves.length<14)waves.push({x,y,color,radius,power,life:1.3*power,total:1.3*power});
+  }
+  function bloom(x,y,color,power) {
+    if(blooms.length>=10)blooms.shift();
+    blooms.push({x,y,color,power,life:1.2,total:1.2});
+  }
   function label(text,x=width/2,y=height*.3) { if(labels.length>=3)labels.shift();labels.push({text,x,y,life:2.1,total:2.1}); }
-  function explode(x,y,amount=115,quiet=false) {
+  function explode(x,y,amount=115,quiet=false,power=1,glow=false) {
     const color=choose(palette);
-    ring(x,y,color); if(!quiet)boostUntil=Math.max(boostUntil,time+1.5);
+    ring(x,y,color,14,power);if(glow)bloom(x,y,color,power); if(!quiet)boostUntil=Math.max(boostUntil,time+1.5);
     const count=Math.min(amount,cap()-particles.length);
     for(let i=0;i<count;i++) {
-      const a=i/count*Math.PI*2+rand(-.04,.04),v=rand(60,260),life=rand(1.1,2.7);
-      addParticle({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,total:life,size:i%8===0?rand(10,18):rand(2,5),
+      const a=i/count*Math.PI*2+rand(-.04,.04),v=rand(60,260)*power,life=rand(glow?1.8:1.1,glow?3.2:2.7);
+      addParticle({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life,total:life,size:(i%8===0?rand(10,18):rand(2,5))*(glow?1.35:1),glow,
         kind:i%8===0?choose(['star','note','petal']):'spark',color:i%4?color:choose(palette),spin:rand(-3,3),gravity:55});
     }
   }
-  function launch(x=rand(.12,.88)*width,y=rand(.15,.48)*height,quiet=false) {
+  function launch(x=rand(.12,.88)*width,y=rand(.15,.48)*height,quiet=false,power=1,glow=false) {
     if(rockets.length>=12)return;
-    rockets.push({x,y:height+15,tx:x+rand(-35,35),ty:y,life:0,total:rand(.65,1.1),color:choose(palette),quiet});
+    rockets.push({x,y:height+15,tx:x+rand(-35,35),ty:y,life:0,total:rand(.65,1.1),color:choose(palette),quiet,power,glow});
   }
   function rain(kind,count) {
     for(let i=0;i<count;i++) {
@@ -101,9 +115,28 @@
     for(let i=0;i<count;i++)enqueue(i*.4,'launch',{x:width*(.12+(i*.193)% .76),y:height*(.14+(i*.117)%.38)});
     boostUntil=time+(long?8:5);label(long?'今天的努力，值得一整片烟花！':'五毛烟花 · 盛大开场');
   }
+  function reward(type) {
+    if(!active()||calm())return;
+    clear();
+    const five=type==='fireworks',duration=five?10:4.5;
+    rewardUntil=boostUntil=time+duration;nextAmbient=time+duration+3;
+    if(five) {
+      for(let i=0;i<11;i++)enqueue(i*.55,'launch',{
+        x:width*(.18+(i*.177)%.64),y:height*(.23+(i*.091)%.23),power:1.65,glow:true});
+      for(let i=0;i<3;i++)enqueue(6.4+i*.22,'explode',{
+        x:width*(.28+i*.22),y:height*(i===1?.32:.43),power:2.05,amount:230});
+      label('5 ★ 奖励 · 为你盛放一整片星光！',width/2,height*.18);
+    } else {
+      for(let i=0;i<3;i++)enqueue(i*.48,'explode',{
+        x:width*(i===0?.5:i===1?.32:.68),y:height*(i===0?.43:.35),power:1.7,amount:200});
+      rain('star',24);label('3 ★ 奖励 · 三连星光大爆发！',width/2,height*.18);
+    }
+    status.textContent=five?'5 星奖励：发光烟花盛典':'3 星奖励：三连星芒与震荡光环';
+  }
   function show(type) {
     if(!active()||calm())return;
     // Repeated clicks refresh the show instead of accumulating unbounded timers.
+    if(time<rewardUntil)return;
     jobs=[];labels=[];
     if(type==='notes') { for(let i=0;i<7;i++)enqueue(i*.35,'rain',{kind:'note',count:14});label('音符暴雨，快乐超标 ♫'); }
     if(type==='bubbles') { for(let i=0;i<8;i++)enqueue(i*.3,'rain',{kind:'bubble',count:9});label('咕噜咕噜 · 灵感冒泡'); }
@@ -124,7 +157,7 @@
     rain('petal',30);boostUntil=time+3;
   }
   function clear() {
-    particles=[];rockets=[];waves=[];jobs=[];labels=[];boostUntil=partyUntil=0;
+    particles=[];rockets=[];waves=[];jobs=[];labels=[];blooms=[];boostUntil=partyUntil=rewardUntil=0;
     ctx.clearRect(0,0,width,height);fx.clearRect(0,0,width,height);
     document.body.classList.remove('fx-party','fx-hot');
   }
@@ -153,37 +186,53 @@
     document.body.classList.toggle('fx-hot',boost>0);
     document.body.classList.toggle('fx-party',!quiet&&time<partyUntil);
     updateStage('render',time,pointer,boost,quiet);
+    // Gentle plum tint makes creamy glow visible on the light garden UI.
+    if(time<rewardUntil&&!quiet){
+      fx.globalAlpha=Math.min(.20,(rewardUntil-time)*.12);fx.fillStyle='#493d59';
+      fx.fillRect(0,0,width,height);fx.globalAlpha=1;
+    }
     for(const p of bubbles) {
       p.y-=p.speed*dt*(quiet?.2:1);if(p.y < -p.size){p.y=height+p.size;p.x=rand(0,width);}
-      const x=p.x;p.x+=Math.sin(time*.5+p.phase)*12;paint(ctx,p,quiet?.13:.55);p.x=x;
+      paint(ctx,{...p,...bubblePosition(p)},quiet?.13:.55);
     }
     for(const p of motes) {
       p.x=(p.x+p.vx*dt+width)%width;p.y=(p.y+p.vy*dt*(quiet?.25:1)+height)%height;p.angle+=p.spin*dt;
-      paint(ctx,p,quiet?.12:.55);
-      if(pointer.active&&!quiet){const d=Math.hypot(p.x-pointer.x,p.y-pointer.y);if(d<145){ctx.globalAlpha=(1-d/145)*.24;ctx.strokeStyle=p.color;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(pointer.x,pointer.y);ctx.stroke();}}
+      const px=outwardX(p.x);paint(ctx,{...p,x:px},quiet?.12:.55);
+      if(pointer.active&&!quiet){const d=Math.hypot(px-pointer.x,p.y-pointer.y);if(d<145){ctx.globalAlpha=(1-d/145)*.24;ctx.strokeStyle=p.color;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(px,p.y);ctx.lineTo(pointer.x,pointer.y);ctx.stroke();}}
     }
     ctx.globalAlpha=1;
-    if(!quiet&&time>=nextAmbient){launch(Math.random()<.5?width*.08:width*.92,rand(.12,.4)*height,true);nextAmbient=time+rand(6,10);}
+    if(!quiet&&time>=nextAmbient){launch(outwardX(Math.random()<.5?width*.08:width*.92),rand(.12,.4)*height,true);nextAmbient=time+rand(6,10);}
     const due=jobs.filter(job=>job.at<=time);jobs=jobs.filter(job=>job.at>time);
-    for(const job of due){if(quiet)continue;if(job.type==='launch')launch(job.data.x,job.data.y);else if(job.type==='rain')rain(job.data.kind,job.data.count);}
+    for(const job of due){if(quiet)continue;if(job.type==='launch')launch(job.data.x,job.data.y,false,job.data.power||1,!!job.data.glow);else if(job.type==='explode')explode(job.data.x,job.data.y,job.data.amount,false,job.data.power,true);else if(job.type==='rain')rain(job.data.kind,job.data.count);}
     for(const rocket of rockets) {
       rocket.life+=dt;const t=Math.min(1,rocket.life/rocket.total),ease=1-(1-t)**2;
       const x=rocket.x+(rocket.tx-rocket.x)*t,y=height+15+(rocket.ty-height-15)*ease;
-      fx.globalAlpha=1;fx.strokeStyle=rocket.color;fx.lineWidth=3;fx.beginPath();fx.moveTo(x,y+28);fx.lineTo(x,y);fx.stroke();
-      paint(fx,{x,y,size:9,kind:'star',color:rocket.color},1);
-      if(t>=1)explode(x,y,rocket.quiet?60:140,rocket.quiet);
+      fx.globalAlpha=1;fx.strokeStyle=rocket.color;fx.lineWidth=rocket.glow?5:3;fx.beginPath();fx.moveTo(x,y+(rocket.glow?75:28));fx.lineTo(x,y);fx.stroke();
+      if(rocket.glow)paint(fx,{x,y,size:42,kind:'glow',color:rocket.color},.95);
+      paint(fx,{x,y,size:rocket.glow?15:9,kind:'star',color:rocket.color},1);
+      if(t>=1)explode(x,y,rocket.glow?200:rocket.quiet?60:140,rocket.quiet,rocket.power,rocket.glow);
     }
     rockets=rockets.filter(r=>r.life<r.total);
+    for(const b of blooms){
+      b.life-=dt;
+      const age=1-b.life/b.total;
+      paint(fx,{...b,size:(35+age*125)*b.power,kind:'glow'},Math.max(0,b.life/b.total)*.7);
+    }
+    blooms=blooms.filter(b=>b.life>0);
     for(const p of particles) {
       const oldX=p.x,oldY=p.y;
       p.life-=dt;p.vy+=p.gravity*dt;p.vx*=Math.exp(-p.drag*dt);p.vy*=Math.exp(-p.drag*dt);p.x+=p.vx*dt;p.y+=p.vy*dt;p.angle+=p.spin*dt;
       const alpha=Math.max(0,Math.min(1,p.life/.55))*(quiet?.25:1);
       if(p.kind==='spark'){
-        fx.globalAlpha=alpha;fx.strokeStyle=p.color;fx.lineWidth=p.size*.65;fx.beginPath();fx.moveTo(oldX-p.vx*.025,oldY-p.vy*.025);fx.lineTo(p.x,p.y);fx.stroke();
+        const tail=p.glow?.085:.025;
+        if(p.glow)paint(fx,{...p,size:p.size*5,kind:'glow'},alpha*.8);
+        fx.globalAlpha=alpha;fx.strokeStyle=p.color;fx.lineWidth=p.size*(p.glow?1.15:.65);
+        fx.beginPath();fx.moveTo(oldX-p.vx*tail,oldY-p.vy*tail);fx.lineTo(p.x,p.y);fx.stroke();
+        if(p.glow){fx.strokeStyle='#fff9df';fx.lineWidth=Math.max(1,p.size*.32);fx.stroke();}
       } else paint(fx,p,alpha);
     }
     particles=particles.filter(p=>p.life>0&&p.y<height+200&&p.y>-450);
-    for(const w of waves){w.life-=dt;w.radius+=dt*210;fx.globalAlpha=Math.max(0,w.life/w.total)*.65;fx.strokeStyle=w.color;fx.lineWidth=3;fx.beginPath();fx.ellipse(w.x,w.y,w.radius,w.radius*.65,time*.3,0,Math.PI*2);fx.stroke();}
+    for(const w of waves){w.life-=dt;w.radius+=dt*210*w.power;fx.globalAlpha=Math.max(0,w.life/w.total)*.65;fx.strokeStyle=w.color;fx.lineWidth=3*w.power;fx.beginPath();fx.ellipse(w.x,w.y,w.radius,w.radius*.65,time*.3,0,Math.PI*2);fx.stroke();}
     waves=waves.filter(w=>w.life>0);
     for(const item of labels) {
       item.life-=dt;fx.save();fx.globalAlpha=Math.max(0,Math.min(1,item.life/.4));fx.translate(item.x,item.y-(item.total-item.life)*13);fx.rotate(-.045);
@@ -227,12 +276,12 @@
     if(!active()||calm()||event.button>0)return;
     if(event.target.closest&&event.target.closest('button,input,select,textarea,a'))return;
     ring(event.clientX,event.clientY);
-    for(const bubble of bubbles)if(Math.hypot(event.clientX-bubble.x,event.clientY-bubble.y)<bubble.size+12){explode(bubble.x,bubble.y,40,true);bubble.y=height+bubble.size;break;}
+    for(const bubble of bubbles){const pos=bubblePosition(bubble);if(Math.hypot(event.clientX-pos.x,event.clientY-pos.y)<bubble.size+12){explode(pos.x,pos.y,40,true);bubble.y=height+bubble.size;break;}}
   },{passive:true});
   document.addEventListener('pointerleave',()=>{pointer.active=false;});
   addEventListener('resize',resize,{passive:true});document.addEventListener('visibilitychange',sync);preference.addEventListener('change',sync);
   addEventListener('pagehide',event=>{cancelAnimationFrame(frame);frame=0;if(stage&&!event.persisted){stage.dispose();stage=null;}});
   addEventListener('pageshow',event=>{if(event.persisted)sync();});
-  window.PianoEffects={celebrate,fireworks:()=>fireworks(true),show,clear,get enabled(){return allowed();}};
+  window.PianoEffects={celebrate,reward,fireworks:()=>fireworks(true),show,clear,get enabled(){return allowed();}};
   resize();sync();
 })();

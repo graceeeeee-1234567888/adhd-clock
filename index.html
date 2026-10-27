@@ -972,7 +972,7 @@
 
   function firework(){
     if(window.PianoEffects){
-      window.PianoEffects.fireworks();
+      window.PianoEffects.reward("fireworks");
       tone(880, 0.16, "triangle", 0.06);
       return;
     }
@@ -1482,7 +1482,8 @@
     document.body.classList.add("shake");
     setTimeout(function(){ document.body.classList.remove("shake"); }, 520);
     tone(120, 0.22, "sawtooth", 0.08);
-    pop("💥 抖三抖 · 别晕", "#00f0ff");
+    if(window.PianoEffects) window.PianoEffects.reward("shockwave");
+    else pop("💥 抖三抖 · 别晕", "#00f0ff");
   });
 
   $("#zenBtn").addEventListener("click", function(){

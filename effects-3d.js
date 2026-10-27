@@ -94,7 +94,8 @@
         nodes.forEach((node,i) => {
           node.mesh.visible=(!mobile || i<8) && (!calm || node.type===3);
           const amplitude=calm?4:14+boost*8;
-          const x=(node.x-.5)*width+Math.sin(time*.45+node.phase)*amplitude;
+          const outward=Math.tanh((node.x-.5)*width/100)*(mobile?12:18);
+          const x=(node.x-.5)*width+outward+Math.sin(time*.45+node.phase)*amplitude;
           const y=(.5-node.y)*height+Math.cos(time*.6+node.phase)*amplitude;
           node.mesh.position.set(x,y,Math.sin(time*.3+node.phase)*30);
           const s=node.size*(mobile?.65:1)*(1+boost*.16);
