@@ -23,7 +23,7 @@
   const pointer = { x: -1000, y: -1000, active: false };
   let trail = [];
   let webPulse = 0;
-  const colors = ['#b4ff39', '#ff42ae', '#d7ffc0'];
+  const colors = ['#579c80', '#c568a0', '#dfa94b', '#709bd3'];
   const allowed = () => enabled && !preference.matches;
   function resize() {
     width = innerWidth; height = innerHeight;
@@ -37,8 +37,36 @@
     points = Array.from({ length: Math.min(96, Math.max(42, Math.round(width * height / 17000))) }, () => ({
       x: Math.random() * width, y: Math.random() * height,
       vx: (Math.random() - .5) * 13, vy: -5 - Math.random() * 12,
-      radius: .8 + Math.random() * 1.7, color: colors[Math.floor(Math.random() * colors.length)]
+      kind: Math.floor(Math.random() * 4), radius: 2 + Math.random() * 2.5, color: colors[Math.floor(Math.random() * colors.length)]
     }));
+  }
+  // Tiny toy-like stars, pearly bubbles, and notes fit the garden desktop.
+  function drawMotif(surface, p, radius) {
+    surface.save();
+    surface.translate(p.x, p.y);
+    surface.fillStyle = p.color;
+    surface.strokeStyle = p.color;
+    surface.lineWidth = .8;
+    if (p.kind === 1) {
+      surface.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = i * Math.PI / 5 - Math.PI / 2;
+        const r = i % 2 ? radius * .45 : radius * 1.6;
+        if (i === 0) surface.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+        else surface.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      surface.closePath(); surface.fill();
+      surface.fillStyle = '#fff9ed';
+      surface.beginPath(); surface.arc(-radius * .25, -radius * .4, radius * .3, 0, Math.PI * 2); surface.fill();
+    } else if (p.kind === 2) {
+      surface.font = Math.round(radius * 4.3) + 'px Georgia, serif';
+      surface.fillText('♪', -radius, radius);
+    } else {
+      surface.beginPath(); surface.arc(0, 0, radius * 1.3, 0, Math.PI * 2); surface.stroke();
+      surface.strokeStyle = '#fffdf4';
+      surface.beginPath(); surface.arc(-radius * .2, -radius * .2, radius * .75, Math.PI, Math.PI * 1.5); surface.stroke();
+    }
+    surface.restore();
   }
   function draw(now) {
     frame = 0;
@@ -70,7 +98,7 @@
           (Math.hypot(a.x - pointer.x, a.y - pointer.y) < 190 ||
            Math.hypot(b.x - pointer.x, b.y - pointer.y) < 190);
         ctx.globalAlpha = (1 - distance / reach) * (calm ? .035 : nearPointer ? .2 : .075);
-        ctx.strokeStyle = nearPointer && (i + j) % 5 === 0 ? '#ff42ae' : '#b4ff39';
+        ctx.strokeStyle = nearPointer && (i + j) % 5 === 0 ? '#c568a0' : '#579c80';
         ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
     }
@@ -79,22 +107,22 @@
       const neighbors = points.map(p => ({ p, d: Math.hypot(p.x - pointer.x, p.y - pointer.y) }))
         .filter(item => item.d < 175).sort((a, b) => a.d - b.d).slice(0, 7);
       ctx.lineWidth = .8;
-      ctx.shadowBlur = 3; ctx.shadowColor = '#b4ff39';
+      ctx.shadowBlur = 3; ctx.shadowColor = '#579c80';
       for (const { p, d } of neighbors) {
         ctx.globalAlpha = (1 - d / 175) * .4;
-        ctx.strokeStyle = '#b4ff39';
+        ctx.strokeStyle = '#579c80';
         ctx.beginPath(); ctx.moveTo(pointer.x, pointer.y); ctx.lineTo(p.x, p.y); ctx.stroke();
       }
       ctx.shadowBlur = 0;
       webPulse = Math.max(0, webPulse - dt * 2.8);
       const glow = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, 90 + webPulse * 45);
-      glow.addColorStop(0, `rgba(180,255,57,${.055 + webPulse * .08})`);
-      glow.addColorStop(1, 'rgba(180,255,57,0)');
+      glow.addColorStop(0, `rgba(108,170,207,${.055 + webPulse * .08})`);
+      glow.addColorStop(1, 'rgba(108,170,207,0)');
       ctx.globalAlpha = 1; ctx.fillStyle = glow;
       ctx.beginPath(); ctx.arc(pointer.x, pointer.y, 90 + webPulse * 45, 0, Math.PI * 2); ctx.fill();
       trail = trail.filter(item => now - item.time < 260);
       if (trail.length > 1) {
-        ctx.lineWidth = .8; ctx.strokeStyle = '#ff42ae';
+        ctx.lineWidth = .8; ctx.strokeStyle = '#c568a0';
         for (let i = 1; i < trail.length; i++) {
           ctx.globalAlpha = (1 - (now - trail[i].time) / 260) * .25;
           ctx.beginPath(); ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
@@ -107,7 +135,7 @@
       const close = !calm && pointer.active && Math.hypot(p.x - pointer.x, p.y - pointer.y) < 175;
       ctx.globalAlpha = calm ? .25 : close ? .75 : .52;
       ctx.fillStyle = p.color; ctx.shadowColor = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, close ? p.radius * 1.25 : p.radius, 0, Math.PI * 2); ctx.fill();
+      drawMotif(ctx, p, close ? p.radius * 1.25 : p.radius);
     }
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
@@ -117,7 +145,7 @@
       p.vx *= Math.exp(-1.6 * dt); p.vy *= Math.exp(-1.6 * dt);
       fx.globalAlpha = Math.max(0, p.life / p.duration);
       fx.fillStyle = p.color;
-      fx.beginPath(); fx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); fx.fill();
+      drawMotif(fx, p, p.radius);
     }
     frame = requestAnimationFrame(draw);
   }
@@ -149,7 +177,7 @@
       return { x: box.x + box.width / 2 + Math.cos(angle) * radius,
         y: box.y + box.height / 2 + Math.sin(angle) * radius,
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-        life: duration, duration, radius: 1 + Math.random() * 2.5, color: colors[i % colors.length] };
+        life: duration, duration, kind: i % 3, radius: 2 + Math.random() * 2.5, color: colors[i % colors.length] };
     });
   });
   addEventListener('pointermove', e => {

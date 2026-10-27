@@ -415,14 +415,16 @@
 
 <div class="wrap">
   <header class="topbar">
-    <div class="ticker"><div class="brand"><span class="brand-mark">♬</span> PIANO / POMODORO</div><div class="edition">练习空间 · VOL. 02</div></div>
-    <h1>音乐番茄钟<em>。</em></h1>
-    <p class="tagline">给 ADHD 的轻量练琴空间。少一点分心，<b>一次只做一件事。</b></p><div class="hero-stamp" aria-hidden="true">LESS NOISE.<br>MORE MUSIC.</div>
+    <div class="ticker"><div class="brand"><span class="brand-mark" aria-hidden="true">♬</span> PIANO GARDEN</div><div class="edition">YOUR LITTLE PRACTICE WORLD · 03</div></div>
+    <div class="hero-layout">
+      <div class="hero-copy"><p class="hero-eyebrow">慢慢练，也会听见花开。</p><h1>音乐番茄钟<em>。</em></h1><p class="tagline">给 ADHD 的轻量练琴空间。<b>一次一件事，一点点就好。</b></p></div>
+      <figure class="hero-postcard"><img src="assets/dream-garden.png" alt="超现实草地上的金鱼、云纹与红伞" width="290" height="126"><figcaption><span>A POSTCARD FROM YOUR MIND</span><span>♧ 01</span></figcaption></figure>
+    </div>
   </header>
 
   <main>
     <!-- 计时器 -->
-    <section class="card timer-card" aria-label="专注计时器"><div class="panel-kicker"><span>01 / FOCUS SESSION</span><span>● 找到你的节奏</span></div>
+    <section class="card timer-card" aria-label="专注计时器"><div class="window-bar"><span>01 / 专注花园 · focus.exe</span><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
       <div class="pills">
         <button class="pill active" data-mode="focus">专注 25</button>
         <button class="pill" data-mode="short">短休 5</button>
@@ -448,6 +450,7 @@
         </div>
       </div>
 
+      <p class="garden-caption">a little practice, a little magic ♡</p>
       <div class="timer-btns">
         <button class="btn primary" id="startBtn">▶ 开始专注</button>
         <button class="btn" id="resetBtn">↺ 重置</button>
@@ -467,7 +470,7 @@
     </section>
 
     <!-- 任务 -->
-    <section class="card tasks-card">
+    <section class="card tasks-card"><div class="window-bar"><span>02 / 今日练习 · little steps</span><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
       <h2>今日练琴任务 <span class="hint">做完点一下 → 领星星</span></h2>
       <form class="task-form" id="taskForm">
         <input aria-label="练琴任务内容" id="taskInput" maxlength="40" placeholder="比如：哈农 第2条 慢练 5 遍" autocomplete="off" />
@@ -483,20 +486,19 @@
     </section>
 
     <!-- 奖励 -->
-    <section class="card reward-card">
-      <h2>我的奖励箱</h2>
-      <div class="star-big"><span id="starCount">0</span><span class="star-ico">⭐</span></div>
+    <section class="card reward-card"><div class="window-bar"><span>03 / 快乐收集站 · good things</span><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+      <div class="reward-intro"><div><h2>我的奖励箱</h2><div class="star-big"><span id="starCount">0</span><span class="star-ico">⭐</span></div><p>每一点进步，都值得被庆祝。</p></div><img class="reward-companion" src="assets/cheer-cat.jpg" alt="举着花球为你加油的小猫" width="112" height="100" loading="lazy"></div>
       <div class="level">
         <div class="level-top"><span id="levelName">Lv.1 键盘新手</span><span id="lvText">0 / 10</span></div>
         <div class="bar"><i id="lvBar"></i></div>
       </div>
       <div class="badges" id="badges"></div>
-      <button class="btn shop" id="fireworkBtn">🎆 花 5⭐ 放一场五毛烟花</button>
-      <button class="btn shop" id="shakeBtn">💥 花 3⭐ 让屏幕抖三抖</button>
+      <div class="reward-actions"><button class="btn shop" id="fireworkBtn">🎆 花 5⭐ 放一场五毛烟花</button>
+      <button class="btn shop" id="shakeBtn">💥 花 3⭐ 让屏幕抖三抖</button></div>
     </section>
 
     <!-- 实时音准 -->
-    <section class="card tuner-card" id="tunerCard">
+    <section class="card tuner-card" id="tunerCard"><div class="window-bar"><span>04 / 声音实验室 · sound check</span><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
       <h2>实时音准 <span class="hint">麦克风本地识别，音频不上传</span></h2>
       <div class="tuner-body">
         <div class="tuner-note">
@@ -540,7 +542,7 @@
     </section>
 
     <!-- 小星星跟弹 -->
-    <section class="card song-card" id="songCard">
+    <section class="card song-card" id="songCard"><div class="window-bar"><span>05 / 小星星练习曲 · play along</span><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
       <h2>小星星跟弹 <span class="hint">弹对自动往下走，弹错不扣分</span></h2>
       <div class="song-bar">
         <button class="btn small primary" id="songStartBtn">▶ 开始跟弹</button>
@@ -580,7 +582,7 @@
       </div>
       <p class="hint" style="margin:10px 0 0">先把番茄钟跑起来，剩下的以后再说。</p>
     </section>
-  </main><footer class="footer-note"><span>一点点练习，也是一点点进步。</span><span>ONE THING AT A TIME.</span></footer>
+  </main><footer class="footer-note"><span><span class="footer-flower" aria-hidden="true">✿</span> 一点点练习，也是一点点进步。</span><span>SAVE A LITTLE JOY, EVERY DAY.</span></footer>
 </div>
 
 <script>
